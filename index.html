@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Tools Hub</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:         oklch(96.5% 0.010 82);
+      --surface:    oklch(99%   0.005 82);
+      --surface-2:  oklch(93%   0.015 82);
+      --border:     oklch(87%   0.018 82);
+      --border-2:   oklch(79%   0.022 82);
+
+      --ink:        oklch(20%   0.02  262);
+      --ink-muted:  oklch(45%   0.025 262);
+      --ink-faint:  oklch(65%   0.018 262);
+
+      --blue:       oklch(44%   0.18  262);
+      --blue-hover: oklch(38%   0.18  262);
+      --blue-light: oklch(55%   0.16  262);
+      --blue-tint:  oklch(94%   0.05  262);
+      --blue-rim:   oklch(82%   0.08  262);
+
+      --green:      oklch(56%   0.17  158);
+      --green-tint: oklch(94%   0.05  158);
+
+      --r:          8px;
+      --r-lg:       14px;
+    }
+
+    html { font-size: 16px; }
+
+    body {
+      font-family: 'DM Sans', -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      min-height: 100vh;
+    }
+
+    /* ── NAV ── */
+    nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 48px;
+      height: 60px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .logo {
+      font-family: 'Syne', sans-serif;
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--ink);
+      letter-spacing: -0.5px;
+    }
+    .logo em { color: var(--blue); font-style: normal; }
+
+    .nav-right {
+      font-size: 13px;
+      color: var(--ink-faint);
+      font-weight: 400;
+    }
+
+    /* ── HERO ── */
+    .hero {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 72px 48px 56px;
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      gap: 48px;
+      align-items: end;
+    }
+
+    .hero-left h1 {
+      font-family: 'Syne', sans-serif;
+      font-size: clamp(44px, 5.5vw, 68px);
+      font-weight: 800;
+      line-height: 1.08;
+      letter-spacing: -2.5px;
+      color: var(--ink);
+      margin-bottom: 22px;
+    }
+
+    .hero-left h1 span {
+      color: var(--blue);
+    }
+
+    .hero-desc {
+      font-size: 17px;
+      line-height: 1.7;
+      color: var(--ink-muted);
+      font-weight: 300;
+      max-width: 420px;
+    }
+
+    .hero-right {
+      padding-bottom: 4px;
+    }
+
+    .hero-stat-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      overflow: hidden;
+      background: var(--surface);
+    }
+
+    .hero-stat {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+    }
+    .hero-stat:last-child { border-bottom: none; }
+    .hero-stat-key { color: var(--ink-muted); font-weight: 400; }
+    .hero-stat-val { font-weight: 600; color: var(--ink); }
+    .hero-stat-val.accent { color: var(--blue); }
+
+    /* ── TOOLS SECTION ── */
+    .tools {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 48px 80px;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: baseline;
+      gap: 14px;
+      margin-bottom: 28px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .section-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+    }
+
+    .section-count {
+      font-size: 12px;
+      color: var(--ink-faint);
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      padding: 2px 8px;
+      border-radius: 20px;
+    }
+
+    /* ── TOOL CARD LAYOUT (featured + grid) ── */
+    .tools-layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: auto auto;
+      gap: 12px;
+    }
+
+    .tool-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      padding: 32px;
+      text-decoration: none;
+      color: inherit;
+      display: block;
+      transition: border-color 0.18s, box-shadow 0.18s, transform 0.18s;
+      position: relative;
+    }
+
+    .tool-card:hover {
+      border-color: var(--border-2);
+      box-shadow: 0 4px 24px oklch(0% 0 0 / 0.07);
+      transform: translateY(-2px);
+    }
+
+    .tool-card.featured {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: 1fr 200px;
+      gap: 32px;
+      align-items: center;
+      background: var(--surface);
+      border-color: var(--blue-rim);
+    }
+
+    .tool-card.featured:hover {
+      border-color: var(--blue);
+      box-shadow: 0 6px 32px oklch(44% 0.18 262 / 0.1);
+    }
+
+    .tool-card.coming-soon {
+      opacity: 0.55;
+      cursor: default;
+    }
+    .tool-card.coming-soon:hover {
+      transform: none;
+      border-color: var(--border);
+      box-shadow: none;
+    }
+
+    .tool-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+      padding: 4px 10px;
+      border-radius: 20px;
+      margin-bottom: 16px;
+    }
+    .tool-label.live {
+      background: var(--green-tint);
+      color: var(--green);
+      border: 1px solid oklch(56% 0.17 158 / 0.25);
+    }
+    .tool-label.soon {
+      background: var(--surface-2);
+      color: var(--ink-faint);
+      border: 1px solid var(--border);
+    }
+
+    .tool-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      margin-bottom: 10px;
+      color: var(--ink);
+    }
+    .tool-card.featured .tool-title { font-size: 28px; }
+
+    .tool-desc {
+      font-size: 14px;
+      line-height: 1.7;
+      color: var(--ink-muted);
+      font-weight: 300;
+    }
+    .tool-card.featured .tool-desc { font-size: 15px; }
+
+    .tool-types {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 20px;
+    }
+
+    .type-chip {
+      font-size: 12px;
+      font-weight: 500;
+      padding: 4px 11px;
+      border-radius: var(--r);
+      background: var(--blue-tint);
+      color: var(--blue);
+      border: 1px solid var(--blue-rim);
+    }
+    .type-chip.neutral {
+      background: var(--surface-2);
+      color: var(--ink-muted);
+      border-color: var(--border);
+    }
+
+    .featured-cta {
+      text-align: center;
+    }
+
+    .cta-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--blue);
+      color: oklch(99% 0 0);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      padding: 12px 24px;
+      border-radius: var(--r);
+      border: none;
+      cursor: pointer;
+      text-decoration: none;
+      transition: background 0.15s, transform 0.15s;
+      white-space: nowrap;
+    }
+    .cta-btn:hover { background: var(--blue-hover); transform: translateY(-1px); }
+
+    .cta-hint {
+      font-size: 12px;
+      color: var(--ink-faint);
+      margin-top: 10px;
+      font-weight: 300;
+    }
+
+    /* ── FOOTER ── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 24px 48px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+    footer p { font-size: 12px; color: var(--ink-faint); }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="logo">AI<em>Tools</em></div>
+  <div class="nav-right">个人 AI 工具箱</div>
+</nav>
+
+<div class="hero">
+  <div class="hero-left">
+    <h1>探索 AI，<br>从<span>这里</span>开始</h1>
+    <p class="hero-desc">汇集各平台模型 API，一键配置，并排对比，让每个人都能轻松驾驭 AI 能力。</p>
+  </div>
+  <div class="hero-right">
+    <div class="hero-stat-list">
+      <div class="hero-stat">
+        <span class="hero-stat-key">支持模型类型</span>
+        <span class="hero-stat-val accent">文字 · 图像 · 视频 · 音频</span>
+      </div>
+      <div class="hero-stat">
+        <span class="hero-stat-key">接入方式</span>
+        <span class="hero-stat-val">填入 API Key 即可</span>
+      </div>
+      <div class="hero-stat">
+        <span class="hero-stat-key">支持厂商</span>
+        <span class="hero-stat-val">国内 + 海外</span>
+      </div>
+      <div class="hero-stat">
+        <span class="hero-stat-key">数据存储</span>
+        <span class="hero-stat-val">本地，不上传</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="tools">
+  <div class="section-header">
+    <span class="section-title">工具列表</span>
+    <span class="section-count">1 可用 · 2 即将上线</span>
+  </div>
+
+  <div class="tools-layout">
+
+    <!-- Featured: Model Lab -->
+    <a href="model-lab.html" class="tool-card featured">
+      <div>
+        <div class="tool-label live">✦ 现已可用</div>
+        <div class="tool-title">模型实验室</div>
+        <p class="tool-desc">
+          配置任意厂商的 AI 模型 API，选择两个模型放入对比槽，
+          输入提示词后一键生成——结果左右并排展示，参数实时可调。
+          支持火山引擎 Seedance、OpenAI、Anthropic 等主流平台。
+        </p>
+        <div class="tool-types">
+          <span class="type-chip">🎬 视频生成</span>
+          <span class="type-chip">🖼 图像生成</span>
+          <span class="type-chip">💬 文字对话</span>
+          <span class="type-chip">🎵 音频生成</span>
+        </div>
+      </div>
+      <div class="featured-cta">
+        <a href="model-lab.html" class="cta-btn">进入实验室 →</a>
+        <p class="cta-hint">无需安装，直接使用</p>
+      </div>
+    </a>
+
+    <!-- Coming soon 1 -->
+    <div class="tool-card coming-soon">
+      <div class="tool-label soon">即将上线</div>
+      <div class="tool-title">提示词工作台</div>
+      <p class="tool-desc">
+        管理提示词模板，批量测试不同写法，
+        直观对比输出质量，找到最有效的提示词。
+      </p>
+      <div class="tool-types">
+        <span class="type-chip neutral">模板管理</span>
+        <span class="type-chip neutral">批量测试</span>
+      </div>
+    </div>
+
+    <!-- Coming soon 2 -->
+    <div class="tool-card coming-soon">
+      <div class="tool-label soon">即将上线</div>
+      <div class="tool-title">API 健康监控</div>
+      <p class="tool-desc">
+        实时检测已配置 API 的可用性与响应延迟，
+        掌握各厂商服务状态，告别"不知道为什么报错"。
+      </p>
+      <div class="tool-types">
+        <span class="type-chip neutral">可用性检测</span>
+        <span class="type-chip neutral">延迟监控</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<footer>
+  <p>AI Tools Hub · 个人工具，持续迭代中</p>
+  <p>配置数据仅存储在本地浏览器，不会上传至任何服务器</p>
+</footer>
+
+</body>
+</html>
