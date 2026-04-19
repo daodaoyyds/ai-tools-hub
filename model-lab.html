@@ -1400,26 +1400,125 @@ const CAT = {
   audio: { icon: '🎵', label: '音频生成' },
 };
 
-const VIDEO_PARAMS = {
-  duration:        { type: 'seg',    label: '时长',    opts: [{l:'5 秒',v:5},{l:'10 秒',v:10}],   def: 5 },
-  aspect_ratio:    { type: 'select', label: '画面比例', opts: ['16:9','9:16','1:1','4:3','3:4'],   def: '16:9' },
-  resolution:      { type: 'select', label: '分辨率',   opts: ['480p','720p','1080p'],              def: '720p' },
-  generate_audio:  { type: 'switch', label: '生成配音 (2.0)',                                       def: false },
-  camera_fixed:    { type: 'switch', label: '固定镜头',                                             def: false },
-  watermark:       { type: 'switch', label: '添加水印',                                             def: false },
-  seed:            { type: 'input',  label: '随机种子',  ph: '留空为随机',                           def: '' },
+// ── 参数方案（基于模型 ID 自动检测） ──
+const PARAM_PROFILES = {
+  'seedance-2': {
+    name: 'Seedance 2.0',
+    params: {
+      duration:       { type:'seg',    label:'时长',    opts:[{l:'5 秒',v:5},{l:'10 秒',v:10},{l:'15 秒',v:15}], def:5 },
+      aspect_ratio:   { type:'select', label:'画面比例', opts:['16:9','9:16','1:1','4:3','3:4'],                  def:'16:9' },
+      resolution:     { type:'select', label:'分辨率',   opts:['480p','720p','1080p'],                            def:'720p' },
+      generate_audio: { type:'switch', label:'生成配音',                                                          def:false },
+      camera_fixed:   { type:'switch', label:'固定镜头',                                                          def:false },
+      watermark:      { type:'switch', label:'添加水印',                                                          def:false },
+      seed:           { type:'input',  label:'随机种子',  ph:'留空为随机',                                         def:'' },
+    }
+  },
+  'seedance-1': {
+    name: 'Seedance 1.5',
+    params: {
+      duration:     { type:'seg',    label:'时长',    opts:[{l:'5 秒',v:5},{l:'10 秒',v:10}],    def:5 },
+      aspect_ratio: { type:'select', label:'画面比例', opts:['16:9','9:16','1:1','4:3','3:4'],   def:'16:9' },
+      resolution:   { type:'select', label:'分辨率',   opts:['480p','720p','1080p'],              def:'720p' },
+      camera_fixed: { type:'switch', label:'固定镜头',                                            def:false },
+      watermark:    { type:'switch', label:'添加水印',                                            def:false },
+      seed:         { type:'input',  label:'随机种子',  ph:'留空为随机',                           def:'' },
+    }
+  },
+  'cogvideo': {
+    name: 'CogVideoX',
+    params: {
+      duration:     { type:'seg',    label:'时长',    opts:[{l:'5 秒',v:5},{l:'10 秒',v:10}],    def:5 },
+      aspect_ratio: { type:'select', label:'画面比例', opts:['16:9','9:16','1:1'],                def:'16:9' },
+      seed:         { type:'input',  label:'随机种子',  ph:'留空为随机',                           def:'' },
+    }
+  },
+  'video-default': {
+    name: '视频生成',
+    params: {
+      duration:     { type:'seg',    label:'时长',    opts:[{l:'5 秒',v:5},{l:'10 秒',v:10}],    def:5 },
+      aspect_ratio: { type:'select', label:'画面比例', opts:['16:9','9:16','1:1','4:3','3:4'],   def:'16:9' },
+      resolution:   { type:'select', label:'分辨率',   opts:['480p','720p','1080p'],              def:'720p' },
+      watermark:    { type:'switch', label:'添加水印',                                            def:false },
+      seed:         { type:'input',  label:'随机种子',  ph:'留空为随机',                           def:'' },
+    }
+  },
+  'dall-e': {
+    name: 'DALL-E',
+    params: {
+      size:    { type:'select', label:'尺寸',    opts:['1024x1024','1792x1024','1024x1792'],       def:'1024x1024' },
+      quality: { type:'seg',    label:'质量',    opts:[{l:'标准',v:'standard'},{l:'高清',v:'hd'}], def:'standard' },
+      n:       { type:'seg',    label:'数量',    opts:[{l:'1 张',v:1},{l:'2 张',v:2}],             def:1 },
+    }
+  },
+  'image-default': {
+    name: '图像生成',
+    params: {
+      size:    { type:'select', label:'尺寸', opts:['1024x1024','1792x1024','1024x1792'],          def:'1024x1024' },
+    }
+  },
+  'anthropic-text': {
+    name: 'Claude',
+    params: {
+      max_tokens: { type:'input', label:'最大 Token', ph:'2048', def:'2048' },
+    }
+  },
+  'text-default': {
+    name: '文字对话',
+    params: {
+      temperature: { type:'input', label:'温度 (0–2)', ph:'0.7', def:'0.7' },
+      max_tokens:  { type:'input', label:'最大 Token', ph:'2048', def:'2048' },
+    }
+  },
 };
 
-const IMAGE_PARAMS = {
-  size:    { type: 'select', label: '尺寸', opts: ['1024x1024','1792x1024','1024x1792'], def: '1024x1024' },
-  quality: { type: 'seg',    label: '质量', opts: [{l:'标准',v:'standard'},{l:'高清',v:'hd'}],      def: 'standard' },
-  n:       { type: 'seg',    label: '数量', opts: [{l:'1 张',v:1},{l:'2 张',v:2}],                  def: 1 },
-};
+// 根据模型 ID + 类型自动识别参数方案
+function detectProfile(model) {
+  if (!model) return null;
+  const mid = (model.modelId || '').toLowerCase();
+  const type = model.type;
+  if (type === 'video') {
+    if (mid.includes('seedance-2') || mid.includes('seedance-2-0') || mid.match(/seedance.*2[-_.]?0/)) return 'seedance-2';
+    if (mid.includes('seedance-1') || mid.includes('seedance-1-5') || mid.includes('seedance')) return 'seedance-1';
+    if (mid.includes('cogvideo'))  return 'cogvideo';
+    return 'video-default';
+  }
+  if (type === 'image') {
+    if (mid.includes('dall-e')) return 'dall-e';
+    return 'image-default';
+  }
+  if (type === 'text') {
+    if (mid.includes('claude'))  return 'anthropic-text';
+    return 'text-default';
+  }
+  return null;
+}
 
-const TEXT_PARAMS = {
-  temperature: { type: 'input', label: '温度 (0–2)', ph: '0.7', def: '0.7' },
-  max_tokens:  { type: 'input', label: '最大 Token', ph: '2048', def: '2048' },
-};
+// 合并两个方案（取并集，duration 取最长可选项）
+function mergeProfiles(p1key, p2key) {
+  if (!p1key && !p2key) return null;
+  if (!p1key) return p2key;
+  if (!p2key) return p1key;
+  if (p1key === p2key) return p1key;
+
+  const p1 = PARAM_PROFILES[p1key];
+  const p2 = PARAM_PROFILES[p2key];
+  const merged = { name: `${p1.name} / ${p2.name}`, params: { ...p2.params } };
+  // Merge p1 params, prefer the one with more options for 'seg'/'select'
+  for (const [k, v1] of Object.entries(p1.params)) {
+    if (!merged.params[k]) {
+      merged.params[k] = v1;
+    } else {
+      const v2 = merged.params[k];
+      if (v1.type === 'seg' && v2.type === 'seg') {
+        // Take the union of options
+        const allVals = [...new Map([...v1.opts, ...v2.opts].map(o => [o.v, o])).values()];
+        merged.params[k] = { ...v1, opts: allVals.sort((a,b) => a.v - b.v) };
+      }
+    }
+  }
+  return merged; // Return synthetic object (not a key)
+}
 
 // ══════════════════════════════════════════════
 // STATE
@@ -1549,23 +1648,44 @@ function renderPanels() {
 }
 
 function renderParams() {
-  const types = S.slots.filter(Boolean).map(id => getModel(id)?.type).filter(Boolean);
-  const t = types[0];
-  let schema = {};
-  if (t === 'video') schema = VIDEO_PARAMS;
-  else if (t === 'image') schema = IMAGE_PARAMS;
-  else if (t === 'text') schema = TEXT_PARAMS;
+  const models = S.slots.filter(Boolean).map(id => getModel(id)).filter(Boolean);
 
+  const grid      = document.getElementById('paramsGrid');
+  const previewEl = document.getElementById('paramsPreview');
+
+  if (!models.length) {
+    grid.innerHTML = `<span style="font-size:13px;color:var(--ink-faint);font-weight:300;">请先选择模型，参数将自动出现</span>`;
+    previewEl.textContent = '';
+    return;
+  }
+
+  // Detect profile for each model
+  const profileKeys = models.map(m => detectProfile(m)).filter(Boolean);
+  const p1 = profileKeys[0], p2 = profileKeys[1];
+
+  // Get merged schema (handles identical or different profiles)
+  let profileObj;
+  if (!p2 || p1 === p2) {
+    profileObj = PARAM_PROFILES[p1];
+  } else {
+    profileObj = mergeProfiles(p1, p2);
+  }
+
+  if (!profileObj) {
+    grid.innerHTML = `<span style="font-size:13px;color:var(--ink-faint);font-weight:300;">暂不支持该模型类型的参数配置</span>`;
+    previewEl.textContent = '';
+    return;
+  }
+
+  const schema = profileObj.params;
+
+  // Init defaults for new params
   Object.entries(schema).forEach(([k,v]) => {
     if (S.params[k] === undefined) S.params[k] = v.def;
   });
 
-  const grid = document.getElementById('paramsGrid');
-  if (!Object.keys(schema).length) {
-    grid.innerHTML = `<span style="font-size:13px;color:var(--ink-faint);font-weight:300;">请先选择模型，参数将自动出现</span>`;
-    document.getElementById('paramsPreview').textContent = '';
-    return;
-  }
+  // Profile badge
+  const profileBadge = `<span style="font-size:11px;font-weight:500;color:var(--blue-light);background:var(--blue-tint);border:1px solid var(--blue-rim);padding:2px 8px;border-radius:20px;margin-left:6px;">${esc(profileObj.name)}</span>`;
 
   let html = '';
   Object.entries(schema).forEach(([k,v]) => {
@@ -1596,14 +1716,15 @@ function renderParams() {
 
   grid.innerHTML = html;
 
-  // Update preview line
+  // Preview line (collapsed state)
   const parts = [];
   if (S.params.duration)     parts.push(`${S.params.duration}s`);
   if (S.params.aspect_ratio) parts.push(S.params.aspect_ratio);
   if (S.params.resolution)   parts.push(S.params.resolution);
   if (S.params.temperature)  parts.push(`temp ${S.params.temperature}`);
-  document.getElementById('paramsPreview').textContent =
-    !S.paramsOpen && parts.length ? `(${parts.join(' · ')})` : '';
+  previewEl.innerHTML = !S.paramsOpen
+    ? (parts.length ? `(${parts.join(' · ')})` : '') + profileBadge
+    : profileBadge;
 }
 
 // ══════════════════════════════════════════════
@@ -1741,8 +1862,12 @@ async function pollVideo(idx, model, taskId, base) {
 
         if (status === 'succeeded' || status === 'completed') {
           clearInterval(t);
-          const url = data.content?.[0]?.video_url || data.output?.video_url || data.video_url;
-          if (!url) { reject(new Error('生成成功但未找到视频链接：' + JSON.stringify(data).slice(0,200))); return; }
+          // content 可能是数组 [{video_url}] 或对象 {video_url}
+          const content = data.content;
+          const url = (Array.isArray(content) ? content[0]?.video_url : content?.video_url)
+            || data.output?.video_url
+            || data.video_url;
+          if (!url) { reject(new Error('生成成功但未找到视频链接：' + JSON.stringify(data).slice(0,300))); return; }
           setStatus(idx,'done');
           setBody(idx, `
             <div class="result-card">
