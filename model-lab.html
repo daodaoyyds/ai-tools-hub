@@ -1083,6 +1083,290 @@
       transition: border-color 0.13s, color 0.13s;
     }
     .btn-cancel:hover { border-color: var(--border-2); color: var(--ink); }
+
+    /* ══ MODE TABS ══ */
+    .mode-tabs {
+      display: flex;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 2px;
+      gap: 2px;
+    }
+    .mode-tab {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 5px 12px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      color: var(--ink-faint);
+      background: none;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .mode-tab:hover { color: var(--ink); background: var(--surface); }
+    .mode-tab.active { background: var(--surface); color: var(--ink); box-shadow: 0 1px 4px oklch(0% 0 0 / 0.08); }
+
+    /* ══ VIDEO CARD ══ */
+    .vcard {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      overflow: hidden;
+      animation: slideUp 0.3s cubic-bezier(0.4,0,0.2,1);
+    }
+    @keyframes slideUp {
+      from { opacity:0; transform:translateY(12px); }
+      to   { opacity:1; transform:translateY(0); }
+    }
+
+    .vcard-video-wrap {
+      position: relative;
+      background: oklch(12% 0 0);
+      cursor: pointer;
+    }
+    .vcard-video-wrap video { width:100%; display:block; max-height: 400px; object-fit: contain; }
+
+    .vcard-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: oklch(0% 0 0 / 0.28);
+      transition: background 0.2s;
+    }
+    .vcard-overlay:hover { background: oklch(0% 0 0 / 0.18); }
+
+    .vcard-play-icon {
+      width: 56px; height: 56px;
+      background: oklch(99% 0 0 / 0.92);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      color: var(--ink);
+      box-shadow: 0 4px 20px oklch(0% 0 0 / 0.3);
+      transition: transform 0.15s;
+    }
+    .vcard-overlay:hover .vcard-play-icon { transform: scale(1.08); }
+
+    .vcard-done-badge {
+      position: absolute;
+      top: 10px; right: 10px;
+      background: var(--green);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 20px;
+      box-shadow: 0 2px 8px oklch(0% 0 0 / 0.2);
+    }
+
+    .vcard-info {
+      padding: 12px 14px 14px;
+    }
+    .vcard-prompt {
+      font-size: 13px;
+      color: var(--ink);
+      line-height: 1.55;
+      margin-bottom: 8px;
+      font-weight: 400;
+    }
+    .vcard-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-bottom: 10px;
+    }
+    .vcard-tag {
+      font-size: 11px;
+      font-weight: 500;
+      padding: 2px 8px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      color: var(--ink-muted);
+    }
+    .vcard-actions {
+      display: flex;
+      gap: 8px;
+    }
+    .vcard-dl {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--blue);
+      text-decoration: none;
+      padding: 5px 12px;
+      border: 1px solid var(--blue-rim);
+      border-radius: var(--r);
+      background: var(--blue-tint);
+      transition: background 0.13s;
+    }
+    .vcard-dl:hover { background: oklch(91% 0.07 262); }
+
+    /* ══ DONE STATUS PILL ══ */
+    .s-done {
+      background: var(--green-tint);
+      color: var(--green);
+      border: 1px solid oklch(55% 0.17 158 / 0.25);
+      animation: doneIn 0.4s cubic-bezier(0.34,1.56,0.64,1);
+    }
+    @keyframes doneIn {
+      from { transform: scale(0.7); opacity: 0; }
+      to   { transform: scale(1);   opacity: 1; }
+    }
+
+    /* ══ HISTORY PANEL ══ */
+    .hist-panel {
+      flex-shrink: 0;
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+    }
+
+    .hist-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 18px;
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.12s;
+    }
+    .hist-header:hover { background: var(--surface-2); }
+
+    .hist-arrow {
+      font-size: 10px;
+      color: var(--ink-faint);
+      transition: transform 0.2s cubic-bezier(0.4,0,0.2,1);
+    }
+    .hist-arrow.open { transform: rotate(90deg); }
+
+    .hist-title { font-size: 12px; font-weight: 600; color: var(--ink-muted); }
+
+    .hist-count {
+      font-size: 11px;
+      color: var(--ink-faint);
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      padding: 1px 7px;
+      border-radius: 20px;
+    }
+
+    .hist-clear {
+      margin-left: auto;
+      background: none;
+      border: none;
+      font-size: 11px;
+      color: var(--ink-faint);
+      cursor: pointer;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'DM Sans', sans-serif;
+      transition: color 0.12s;
+    }
+    .hist-clear:hover { color: var(--red); }
+
+    .hist-body {
+      display: grid;
+      grid-template-rows: 0fr;
+      transition: grid-template-rows 0.22s cubic-bezier(0.4,0,0.2,1);
+    }
+    .hist-body.open { grid-template-rows: 1fr; }
+
+    .hist-inner {
+      overflow: hidden;
+    }
+
+    .hist-scroll {
+      display: flex;
+      gap: 10px;
+      padding: 10px 18px 14px;
+      overflow-x: auto;
+    }
+    .hist-scroll::-webkit-scrollbar { height: 3px; }
+    .hist-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    .hist-card {
+      flex-shrink: 0;
+      width: 148px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      overflow: hidden;
+      cursor: pointer;
+      transition: border-color 0.13s, transform 0.13s;
+    }
+    .hist-card:hover { border-color: var(--blue-rim); transform: translateY(-2px); }
+
+    .hist-thumb {
+      width: 100%;
+      height: 84px;
+      background: oklch(12% 0 0);
+      position: relative;
+      overflow: hidden;
+    }
+    .hist-thumb video, .hist-thumb img { width:100%; height:100%; object-fit:cover; }
+    .hist-thumb-text {
+      width:100%; height:100%;
+      display:flex; align-items:center; justify-content:center;
+      font-size: 22px; opacity: 0.4;
+    }
+
+    .hist-play-icon {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: rgba(255,255,255,0.85);
+      font-size: 16px;
+      background: oklch(0% 0 0 / 0.25);
+    }
+
+    .hist-card-meta {
+      padding: 7px 9px 8px;
+    }
+    .hist-card-model { font-size: 11px; font-weight: 600; color: var(--ink); margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .hist-card-prompt { font-size: 11px; color: var(--ink-muted); font-weight: 300; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 3px; }
+    .hist-card-time { font-size: 10px; color: var(--ink-faint); }
+
+    .hist-empty { font-size: 13px; color: var(--ink-faint); font-weight: 300; padding: 4px 0; }
+
+    /* Video modal overlay */
+    .vid-modal {
+      position: fixed;
+      inset: 0;
+      background: oklch(0% 0 0 / 0.82);
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      backdrop-filter: blur(8px);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+    }
+    .vid-modal.open { opacity:1; pointer-events:all; }
+    .vid-modal video { max-width: 90vw; max-height: 85vh; border-radius: var(--r-lg); box-shadow: 0 24px 80px oklch(0% 0 0 / 0.6); }
+    .vid-modal-close {
+      position: fixed;
+      top: 20px; right: 20px;
+      width: 36px; height: 36px;
+      background: oklch(99% 0 0 / 0.15);
+      border: 1px solid oklch(99% 0 0 / 0.2);
+      border-radius: 50%;
+      color: white;
+      font-size: 16px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      transition: background 0.13s;
+    }
+    .vid-modal-close:hover { background: oklch(99% 0 0 / 0.25); }
   </style>
 </head>
 <body>
@@ -1114,12 +1398,16 @@
 
     <!-- SLOT BAR -->
     <div class="slot-bar">
+      <div class="mode-tabs">
+        <button class="mode-tab active" id="tab-single" onclick="setMode('single')">单模型</button>
+        <button class="mode-tab" id="tab-compare" onclick="setMode('compare')">对比模式</button>
+      </div>
       <div class="slot" id="slot0" onclick="slotClick(0)">
         <span style="font-size:15px">＋</span>
-        <span>选择模型 A</span>
+        <span id="slot0-label">选择模型</span>
       </div>
-      <span class="vs-tag">VS</span>
-      <div class="slot" id="slot1" onclick="slotClick(1)">
+      <span class="vs-tag" id="vsTag" style="display:none">VS</span>
+      <div class="slot" id="slot1" onclick="slotClick(1)" style="display:none">
         <span style="font-size:15px">＋</span>
         <span>选择模型 B</span>
       </div>
@@ -1165,21 +1453,12 @@
       <!-- Welcome -->
       <div class="welcome" id="welcomeState">
         <div class="welcome-glyph">🔬</div>
-        <h2>开始模型对比</h2>
-        <p>从左侧选择你的模型，填写提示词，点击生成，左右对比查看结果。</p>
+        <h2 id="welcomeTitle">选择模型开始使用</h2>
+        <p id="welcomeDesc">从左侧点击模型放入槽位，填写提示词，点击生成查看结果。</p>
         <div class="steps">
-          <div class="step">
-            <div class="step-n">1</div>
-            <span>点击左侧「<strong>+ 添加模型</strong>」，填入 API Key 和模型 ID</span>
-          </div>
-          <div class="step">
-            <div class="step-n">2</div>
-            <span>点击模型卡片，将其放入上方 A / B 对比槽</span>
-          </div>
-          <div class="step">
-            <div class="step-n">3</div>
-            <span>填写提示词，调整参数后点击「<strong>▶ 生成</strong>」</span>
-          </div>
+          <div class="step"><div class="step-n">1</div><span>点击左侧「<strong>+ 添加模型</strong>」，填入 API Key</span></div>
+          <div class="step"><div class="step-n">2</div><span>点击模型卡片放入槽位</span></div>
+          <div class="step"><div class="step-n">3</div><span>填写提示词，调整参数，点击「<strong>▶ 生成</strong>」</span></div>
         </div>
       </div>
 
@@ -1191,10 +1470,7 @@
             <span class="status-pill s-idle" id="panel0-status">待机</span>
           </div>
           <div class="panel-body" id="panel0-body">
-            <div class="panel-placeholder">
-              <div class="panel-placeholder-icon">◻</div>
-              <span>选择模型后点击生成</span>
-            </div>
+            <div class="panel-placeholder"><div class="panel-placeholder-icon">◻</div><span>点击生成查看结果</span></div>
           </div>
         </div>
         <div class="panel" id="panel1">
@@ -1203,16 +1479,38 @@
             <span class="status-pill s-idle" id="panel1-status">待机</span>
           </div>
           <div class="panel-body" id="panel1-body">
-            <div class="panel-placeholder">
-              <div class="panel-placeholder-icon">◻</div>
-              <span>选择模型后点击生成</span>
-            </div>
+            <div class="panel-placeholder"><div class="panel-placeholder-icon">◻</div><span>点击生成查看结果</span></div>
           </div>
         </div>
       </div>
 
     </div>
+
+    <!-- HISTORY PANEL -->
+    <div class="hist-panel">
+      <div class="hist-header" onclick="toggleHist()">
+        <span class="hist-arrow" id="histArrow">▶</span>
+        <span class="hist-title">历史任务</span>
+        <span class="hist-count" id="histCount" style="display:none"></span>
+        <button class="hist-clear" onclick="clearHist(event)">清空</button>
+      </div>
+      <div class="hist-body" id="histBody">
+        <div class="hist-inner">
+          <div class="hist-scroll" id="histScroll">
+            <span class="hist-empty">暂无历史记录，生成完成后自动保存</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </main>
+</div>
+
+<!-- VIDEO MODAL -->
+<div class="vid-modal" id="vidModal" onclick="closeVidModal()">
+  <button class="vid-modal-close">✕</button>
+  <video id="vidModalPlayer" controls></video>
+</div>
 </div>
 
 <!-- DRAWER -->
@@ -1523,9 +1821,12 @@ function mergeProfiles(p1key, p2key) {
 // ══════════════════════════════════════════════
 // STATE
 // ══════════════════════════════════════════════
+const HIST_KEY = 'ai-tools-history-v1';
+
 const S = {
   models: loadModels(),
   slots: [null, null],
+  mode: 'single',   // 'single' | 'compare'
   params: {},
   filterQ: '',
   paramsOpen: false,
@@ -1604,17 +1905,20 @@ function renderList() {
 }
 
 function renderSlots() {
-  [0,1].forEach(i => {
-    const el = document.getElementById(`slot${i}`);
-    const id = S.slots[i];
-    if (!id) {
-      el.className = 'slot';
-      el.innerHTML = `<span style="font-size:15px">＋</span><span>选择模型 ${['A','B'][i]}</span>`;
-    } else {
-      const m = getModel(id);
-      if (!m) return;
-      el.className = 'slot filled';
-      el.innerHTML = `
+  const isSingle = S.mode === 'single';
+
+  // slot 0
+  const el0 = document.getElementById('slot0');
+  const id0 = S.slots[0];
+  document.getElementById('slot0-label').textContent = isSingle ? '选择模型' : '选择模型 A';
+  if (!id0) {
+    el0.className = 'slot';
+    el0.innerHTML = `<span style="font-size:15px">＋</span><span id="slot0-label">${isSingle?'选择模型':'选择模型 A'}</span>`;
+  } else {
+    const m = getModel(id0);
+    if (m) {
+      el0.className = 'slot filled';
+      el0.innerHTML = `
         <div class="slot-inner">
           <span class="slot-cat">${CAT[m.type]?.icon||'⚙'}</span>
           <div class="slot-texts">
@@ -1622,29 +1926,80 @@ function renderSlots() {
             <div class="slot-provider">${esc(m.provider||'')}</div>
           </div>
         </div>
-        <button class="slot-remove" onclick="event.stopPropagation();removeSlot(${i})">✕</button>`;
+        <button class="slot-remove" onclick="event.stopPropagation();removeSlot(0)">✕</button>`;
     }
-  });
+  }
+
+  // slot 1 + VS tag — only in compare mode
+  const slot1 = document.getElementById('slot1');
+  const vsTag  = document.getElementById('vsTag');
+  slot1.style.display = isSingle ? 'none' : '';
+  vsTag.style.display  = isSingle ? 'none' : '';
+
+  if (!isSingle) {
+    const id1 = S.slots[1];
+    if (!id1) {
+      slot1.className = 'slot';
+      slot1.innerHTML = `<span style="font-size:15px">＋</span><span>选择模型 B</span>`;
+    } else {
+      const m = getModel(id1);
+      if (m) {
+        slot1.className = 'slot filled';
+        slot1.innerHTML = `
+          <div class="slot-inner">
+            <span class="slot-cat">${CAT[m.type]?.icon||'⚙'}</span>
+            <div class="slot-texts">
+              <div class="slot-name">${esc(m.name)}</div>
+              <div class="slot-provider">${esc(m.provider||'')}</div>
+            </div>
+          </div>
+          <button class="slot-remove" onclick="event.stopPropagation();removeSlot(1)">✕</button>`;
+      }
+    }
+  }
 }
 
 function renderPanels() {
-  const any = S.slots[0] || S.slots[1];
+  const isSingle = S.mode === 'single';
+  const any = S.slots[0] || (!isSingle && S.slots[1]);
   document.getElementById('welcomeState').style.display = any ? 'none' : 'flex';
-  document.getElementById('panelsRow').style.display = any ? 'flex' : 'none';
+  document.getElementById('panelsRow').style.display    = any ? 'flex' : 'none';
 
-  [0,1].forEach(i => {
-    const id = S.slots[i];
-    const nameEl = document.getElementById(`panel${i}-name`);
-    if (id) {
-      const m = getModel(id);
-      nameEl.textContent = m ? m.name : '—';
+  // Update welcome copy per mode
+  document.getElementById('welcomeTitle').textContent = isSingle ? '选择模型开始生成' : '选择模型开始对比';
+  document.getElementById('welcomeDesc').textContent  = isSingle
+    ? '从左侧点击模型放入槽位，填写提示词，生成结果会自动保存到历史。'
+    : '选择两个模型放入 A / B 槽位，同一提示词并排对比输出效果。';
+
+  // panel 0
+  const id0 = S.slots[0];
+  const name0 = document.getElementById('panel0-name');
+  if (id0) {
+    const m = getModel(id0);
+    name0.textContent = m ? m.name : '—';
+  } else {
+    name0.textContent = '—';
+    document.getElementById('panel0-body').innerHTML =
+      `<div class="panel-placeholder"><div class="panel-placeholder-icon">◻</div><span>点击生成查看结果</span></div>`;
+    setStatus(0,'idle');
+  }
+
+  // panel 1 — only in compare mode
+  const panel1 = document.getElementById('panel1');
+  panel1.style.display = isSingle ? 'none' : '';
+  if (!isSingle) {
+    const id1 = S.slots[1];
+    const name1 = document.getElementById('panel1-name');
+    if (id1) {
+      const m = getModel(id1);
+      name1.textContent = m ? m.name : '—';
     } else {
-      nameEl.textContent = '—';
-      document.getElementById(`panel${i}-body`).innerHTML =
-        `<div class="panel-placeholder"><div class="panel-placeholder-icon">◻</div><span>选择模型后点击生成</span></div>`;
-      setStatus(i,'idle');
+      name1.textContent = '—';
+      document.getElementById('panel1-body').innerHTML =
+        `<div class="panel-placeholder"><div class="panel-placeholder-icon">◻</div><span>点击生成查看结果</span></div>`;
+      setStatus(1,'idle');
     }
-  });
+  }
 }
 
 function renderParams() {
@@ -1732,14 +2087,28 @@ function renderParams() {
 // ══════════════════════════════════════════════
 function filterModels(q) { S.filterQ = q; renderList(); }
 
+function setMode(mode) {
+  S.mode = mode;
+  document.getElementById('tab-single').classList.toggle('active', mode === 'single');
+  document.getElementById('tab-compare').classList.toggle('active', mode === 'compare');
+  // Clear slot 1 when switching to single
+  if (mode === 'single') S.slots[1] = null;
+  renderAll();
+}
+
 function modelClick(id) {
-  if (S.slots.includes(id)) {
-    const idx = S.slots.indexOf(id);
-    S.slots[idx] = null;
+  if (S.mode === 'single') {
+    // Toggle or assign to slot 0
+    S.slots[0] = S.slots[0] === id ? null : id;
+    S.slots[1] = null;
   } else {
-    const empty = S.slots.indexOf(null);
-    if (empty !== -1) S.slots[empty] = id;
-    else S.slots[0] = id;
+    if (S.slots.includes(id)) {
+      S.slots[S.slots.indexOf(id)] = null;
+    } else {
+      const empty = S.slots.indexOf(null);
+      if (empty !== -1) S.slots[empty] = id;
+      else S.slots[0] = id;
+    }
   }
   renderAll();
 }
@@ -1862,23 +2231,40 @@ async function pollVideo(idx, model, taskId, base) {
 
         if (status === 'succeeded' || status === 'completed') {
           clearInterval(t);
-          // content 可能是数组 [{video_url}] 或对象 {video_url}
           const content = data.content;
           const url = (Array.isArray(content) ? content[0]?.video_url : content?.video_url)
-            || data.output?.video_url
-            || data.video_url;
+            || data.output?.video_url || data.video_url;
           if (!url) { reject(new Error('生成成功但未找到视频链接：' + JSON.stringify(data).slice(0,300))); return; }
-          setStatus(idx,'done');
+
+          const elapsed = n * 5;
+          const prompt  = document.getElementById('promptInput').value.trim();
+          const tags    = [
+            S.params.duration ? S.params.duration + 's' : '',
+            S.params.aspect_ratio || '',
+            S.params.resolution   || '',
+            elapsed + 's 生成',
+          ].filter(Boolean);
+
+          setStatus(idx, 'done');
           setBody(idx, `
-            <div class="result-card">
-              <video controls autoplay loop>
-                <source src="${url}" type="video/mp4">
-              </video>
-              <div class="result-foot">
-                <span>✓ 生成完成</span>
-                <a href="${url}" target="_blank">↗ 下载视频</a>
+            <div class="vcard">
+              <div class="vcard-video-wrap" onclick="openVidModal('${url}')">
+                <video preload="metadata" src="${url}"></video>
+                <div class="vcard-overlay">
+                  <div class="vcard-play-icon">▶</div>
+                </div>
+                <span class="vcard-done-badge">✓ 完成</span>
+              </div>
+              <div class="vcard-info">
+                <div class="vcard-prompt">${esc(trunc(prompt, 100))}</div>
+                <div class="vcard-tags">${tags.map(t=>`<span class="vcard-tag">${t}</span>`).join('')}</div>
+                <div class="vcard-actions">
+                  <a href="${url}" target="_blank" class="vcard-dl">↗ 下载视频</a>
+                </div>
               </div>
             </div>`);
+
+          addHistory({ type:'video', modelName: model.name, modelId: model.id, prompt, params: {...S.params}, url, elapsed });
           resolve();
         } else if (status === 'failed' || status === 'cancelled') {
           clearInterval(t);
@@ -2204,9 +2590,127 @@ function showParseResult(type, msg) {
 }
 
 // ══════════════════════════════════════════════
+// HISTORY
+// ══════════════════════════════════════════════
+function getHistory() {
+  try { return JSON.parse(localStorage.getItem(HIST_KEY) || '[]'); } catch { return []; }
+}
+
+function addHistory(item) {
+  const h = getHistory();
+  h.unshift({ ...item, id: genId(), ts: Date.now() });
+  if (h.length > 60) h.splice(60);
+  localStorage.setItem(HIST_KEY, JSON.stringify(h));
+  renderHistory();
+}
+
+function clearHist(e) {
+  e?.stopPropagation();
+  if (!confirm('清空所有历史记录？')) return;
+  localStorage.removeItem(HIST_KEY);
+  renderHistory();
+}
+
+function toggleHist() {
+  const body  = document.getElementById('histBody');
+  const arrow = document.getElementById('histArrow');
+  const open  = body.classList.toggle('open');
+  arrow.classList.toggle('open', open);
+}
+
+function timeAgo(ts) {
+  const d = Date.now() - ts;
+  if (d < 60000)      return '刚刚';
+  if (d < 3600000)    return Math.floor(d / 60000) + ' 分钟前';
+  if (d < 86400000)   return Math.floor(d / 3600000) + ' 小时前';
+  return Math.floor(d / 86400000) + ' 天前';
+}
+
+function renderHistory() {
+  const h       = getHistory();
+  const countEl = document.getElementById('histCount');
+  const scroll  = document.getElementById('histScroll');
+
+  if (h.length) {
+    countEl.textContent = h.length;
+    countEl.style.display = '';
+  } else {
+    countEl.style.display = 'none';
+  }
+
+  if (!h.length) {
+    scroll.innerHTML = '<span class="hist-empty">暂无历史记录，生成完成后自动保存</span>';
+    return;
+  }
+
+  scroll.innerHTML = h.map(item => {
+    if (item.type === 'video') {
+      return `
+        <div class="hist-card" onclick="openVidModal('${item.url}')">
+          <div class="hist-thumb">
+            <video src="${item.url}" preload="none"></video>
+            <div class="hist-play-icon">▶</div>
+          </div>
+          <div class="hist-card-meta">
+            <div class="hist-card-model">${esc(item.modelName||'')}</div>
+            <div class="hist-card-prompt">${esc(trunc(item.prompt||'',38))}</div>
+            <div class="hist-card-time">${timeAgo(item.ts)}</div>
+          </div>
+        </div>`;
+    }
+    if (item.type === 'image') {
+      return `
+        <div class="hist-card" onclick="openVidModal('${item.url}')">
+          <div class="hist-thumb"><img src="${item.url}" loading="lazy"></div>
+          <div class="hist-card-meta">
+            <div class="hist-card-model">${esc(item.modelName||'')}</div>
+            <div class="hist-card-prompt">${esc(trunc(item.prompt||'',38))}</div>
+            <div class="hist-card-time">${timeAgo(item.ts)}</div>
+          </div>
+        </div>`;
+    }
+    // text
+    return `
+      <div class="hist-card">
+        <div class="hist-thumb"><div class="hist-thumb-text">💬</div></div>
+        <div class="hist-card-meta">
+          <div class="hist-card-model">${esc(item.modelName||'')}</div>
+          <div class="hist-card-prompt">${esc(trunc(item.prompt||'',38))}</div>
+          <div class="hist-card-time">${timeAgo(item.ts)}</div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════════
+// VIDEO MODAL
+// ══════════════════════════════════════════════
+function openVidModal(url) {
+  const modal  = document.getElementById('vidModal');
+  const player = document.getElementById('vidModalPlayer');
+  player.src = url;
+  player.play();
+  modal.classList.add('open');
+}
+
+function closeVidModal() {
+  const modal  = document.getElementById('vidModal');
+  const player = document.getElementById('vidModalPlayer');
+  player.pause();
+  player.src = '';
+  modal.classList.remove('open');
+}
+
+// Esc key closes modal
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeVidModal();
+});
+
+// ══════════════════════════════════════════════
 // INIT
 // ══════════════════════════════════════════════
-renderAll();
+setMode('single');
+renderHistory();
 </script>
 </body>
 </html>
