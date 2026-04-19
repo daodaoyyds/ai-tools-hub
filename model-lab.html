@@ -1157,11 +1157,6 @@
         </div>
       </div>
 
-      <div class="notice" id="corsNotice" style="display:none">
-        ⚠️ 火山引擎等 API 不支持浏览器直接调用，使用前请运行本地代理：<br>
-        在 <strong>ai-tools-hub</strong> 目录打开终端，运行 <code>node server.js</code>
-      </div>
-
       <div class="form-section">基本信息</div>
 
       <div class="f-row">
@@ -1578,15 +1573,13 @@ async function runPanel(idx, model, prompt) {
     else throw new Error('该模型类型暂不支持自动调用');
   } catch (e) {
     setStatus(idx,'error');
-    setBody(idx, `<div class="error-card"><strong>生成失败</strong>${esc(e.message)}<br><br>常见原因：API Key 错误 · 余额不足 · 需要启动本地代理（node server.js）</div>`);
+    setBody(idx, `<div class="error-card"><strong>生成失败</strong>${esc(e.message)}<br><br>常见原因：API Key 错误 · 模型 ID 不正确 · 账户余额不足</div>`);
   }
 }
 
 // ── VIDEO ──
 async function runVideo(idx, model, prompt) {
   const base = model.endpoint || 'https://ark.cn-beijing.volces.com/api/v3';
-  const proxy = 'http://localhost:7788';
-
   const body = {
     model: model.modelId,
     content: [{ type: 'text', text: prompt }],
@@ -1594,26 +1587,19 @@ async function runVideo(idx, model, prompt) {
   };
 
   let taskId;
-  try {
-    const res = await fetch(`${proxy}/proxy`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Target-Url': `${base}/contents/generations/tasks`,
-        'X-Api-Key': model.apiKey,
-      },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) { const t = await res.text(); throw new Error(`API ${res.status}: ${t.slice(0,200)}`); }
-    const data = await res.json();
-    taskId = data.id || data.task_id;
-    if (!taskId) throw new Error('未获取到 task_id：' + JSON.stringify(data).slice(0,200));
-  } catch (e) {
-    if (e.message.includes('Failed to fetch') || e.message.includes('NetworkError')) {
-      throw new Error('无法连接。请先在终端运行 node server.js 启动本地代理，再重试。');
-    }
-    throw e;
-  }
+  const res = await fetch('/api/proxy', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Target-Url': `${base}/contents/generations/tasks`,
+      'X-Api-Key': model.apiKey,
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) { const t = await res.text(); throw new Error(`API ${res.status}: ${t.slice(0,200)}`); }
+  const data = await res.json();
+  taskId = data.id || data.task_id;
+  if (!taskId) throw new Error('未获取到 task_id：' + JSON.stringify(data).slice(0,200));
 
   setBody(idx, `<div class="loading"><div class="spinner"></div><div class="loading-text">任务已提交，轮询结果中…</div><div class="loading-sub">Task ID: ${taskId}</div></div>`);
 
@@ -1621,14 +1607,13 @@ async function runVideo(idx, model, prompt) {
 }
 
 async function pollVideo(idx, model, taskId, base) {
-  const proxy = 'http://localhost:7788';
   let n = 0;
   return new Promise((resolve, reject) => {
     const t = setInterval(async () => {
       n++;
       if (n > 72) { clearInterval(t); reject(new Error('等待超时（6分钟），请稍后在控制台查看任务')); return; }
       try {
-        const res = await fetch(`${proxy}/proxy`, {
+        const res = await fetch('/api/proxy', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -1775,7 +1760,7 @@ function clearDrawerFields() {
   document.getElementById('endpointHint').textContent = '';
   document.getElementById('modelIdHint').textContent = '';
   document.getElementById('f-presets').innerHTML = '';
-  document.getElementById('corsNotice').style.display = 'none';
+
 }
 
 function selectProv(key) {
@@ -1801,7 +1786,6 @@ function applyProvPreset(key, fillDefaults) {
   }
   document.getElementById('endpointHint').textContent = p.endpointHint || '';
   document.getElementById('modelIdHint').textContent = p.modelIdHint || '';
-  document.getElementById('corsNotice').style.display = p.corsWarning ? 'block' : 'none';
 
   const presetsEl = document.getElementById('f-presets');
   presetsEl.innerHTML = (p.models||[]).map(m =>
