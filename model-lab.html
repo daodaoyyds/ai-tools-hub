@@ -2034,6 +2034,8 @@ function renderParams() {
 
   const schema = profileObj.params;
 
+  // Clear stale params that don't belong to current schema
+  Object.keys(S.params).forEach(k => { if (!(k in schema)) delete S.params[k]; });
   // Init defaults for new params
   Object.entries(schema).forEach(([k,v]) => {
     if (S.params[k] === undefined) S.params[k] = v.def;
