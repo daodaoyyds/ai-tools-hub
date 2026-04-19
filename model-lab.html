@@ -2182,11 +2182,14 @@ async function runPanel(idx, model, prompt) {
 // ── VIDEO ──
 async function runVideo(idx, model, prompt) {
   const base = model.endpoint || 'https://ark.cn-beijing.volces.com/api/v3';
+  const videoParams = buildVideoParams();
   const body = {
     model: model.modelId,
     content: [{ type: 'text', text: prompt }],
-    parameters: buildVideoParams(),
+    parameters: videoParams,
   };
+
+  console.log('[Model Lab] Video request body:', JSON.stringify(body, null, 2));
 
   let taskId;
   const res = await fetch('/api/proxy', {
@@ -2203,7 +2206,8 @@ async function runVideo(idx, model, prompt) {
   taskId = data.id || data.task_id;
   if (!taskId) throw new Error('未获取到 task_id：' + JSON.stringify(data).slice(0,200));
 
-  setBody(idx, `<div class="loading"><div class="spinner"></div><div class="loading-text">任务已提交，轮询结果中…</div><div class="loading-sub">Task ID: ${taskId}</div></div>`);
+  const paramSummary = Object.entries(videoParams).map(([k,v]) => `${k}=${v}`).join(' · ');
+  setBody(idx, `<div class="loading"><div class="spinner"></div><div class="loading-text">任务已提交，轮询结果中…</div><div class="loading-sub">Task ID: ${taskId}<br>发送参数：${esc(paramSummary)}</div></div>`);
 
   await pollVideo(idx, model, taskId, base);
 }
