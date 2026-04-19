@@ -2188,7 +2188,7 @@ async function runVideo(idx, model, prompt) {
   const body = {
     model: model.modelId,
     content: [{ type: 'text', text: prompt }],
-    parameters: videoParams,
+    ...videoParams,
   };
 
   console.log('[Model Lab] Video request body:', JSON.stringify(body, null, 2));
@@ -2324,7 +2324,7 @@ async function runText(idx, model, prompt) {
 function buildVideoParams() {
   const p = {};
   if (S.params.duration)                p.duration = Number(S.params.duration);
-  if (S.params.aspect_ratio)            p.aspect_ratio = S.params.aspect_ratio;
+  if (S.params.aspect_ratio)            p.ratio = S.params.aspect_ratio;
   if (S.params.resolution)              p.resolution = S.params.resolution;
   if (S.params.camera_fixed != null)    p.camera_fixed = S.params.camera_fixed;
   if (S.params.watermark != null)       p.watermark = S.params.watermark;
