@@ -981,6 +981,95 @@
     }
     .btn-primary:hover { background: var(--blue-hover); }
 
+    /* ── Auto Parse ── */
+    .parse-section {
+      margin-bottom: 18px;
+      border: 1px solid var(--blue-rim);
+      border-radius: var(--r-lg);
+      overflow: hidden;
+      background: var(--blue-tint);
+    }
+
+    .parse-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 11px 14px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--blue);
+      user-select: none;
+      transition: background 0.13s;
+    }
+    .parse-toggle:hover { background: oklch(91% 0.07 262 / 0.5); }
+
+    .parse-icon {
+      font-size: 10px;
+      color: var(--blue-light);
+      transition: transform 0.2s cubic-bezier(0.4,0,0.2,1);
+    }
+    .parse-icon.open { transform: rotate(90deg); }
+
+    .parse-badge {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      background: var(--blue);
+      color: #fff;
+      padding: 2px 7px;
+      border-radius: 20px;
+      margin-left: 2px;
+    }
+
+    .parse-panel {
+      display: grid;
+      grid-template-rows: 0fr;
+      transition: grid-template-rows 0.22s cubic-bezier(0.4,0,0.2,1);
+      background: var(--surface);
+      border-top: 1px solid var(--blue-rim);
+    }
+    .parse-panel.open { grid-template-rows: 1fr; }
+
+    .parse-inner {
+      overflow: hidden;
+      padding: 0 14px;
+    }
+
+    .parse-textarea {
+      height: 130px;
+      resize: vertical;
+      font-family: 'DM Mono', 'Fira Code', monospace;
+      font-size: 12px;
+      line-height: 1.6;
+      background: var(--bg);
+    }
+
+    .btn-parse {
+      background: var(--blue);
+      color: #fff;
+      border: none;
+      border-radius: var(--r);
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      font-family: 'DM Sans', sans-serif;
+      cursor: pointer;
+      transition: background 0.13s;
+      white-space: nowrap;
+    }
+    .btn-parse:hover { background: var(--blue-hover); }
+
+    .parse-result {
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .parse-result.ok  { color: var(--green); }
+    .parse-result.err { color: var(--red); }
+    .parse-result.warn { color: var(--amber); }
+
+    .f-filled { border-color: var(--blue-rim) !important; background: var(--blue-tint) !important; }
+
     .btn-cancel {
       background: var(--surface);
       border: 1px solid var(--border);
@@ -1157,6 +1246,28 @@
         </div>
       </div>
 
+      <!-- AUTO PARSE -->
+      <div class="parse-section">
+        <div class="parse-toggle" onclick="toggleParse()">
+          <span class="parse-icon" id="parseIcon">▶</span>
+          <span>从调用示例自动填写</span>
+          <span class="parse-badge">推荐</span>
+        </div>
+        <div class="parse-panel" id="parsePanel">
+          <div class="parse-inner">
+            <div class="f-field" style="padding-top:12px">
+              <label class="f-label">粘贴 curl 命令或代码片段</label>
+              <textarea class="f-input parse-textarea" id="parseInput"
+                placeholder="粘贴任意格式的调用示例，例如：&#10;&#10;curl -X POST https://ark.cn-beijing.volces.com/api/v3/... \&#10;  -H &quot;Authorization: Bearer sk-xxx&quot; \&#10;  -d '{&quot;model&quot;: &quot;doubao-seedance-...&quot;, ...}'&#10;&#10;或 Python / JavaScript 代码也可以"></textarea>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;padding-bottom:14px">
+              <button class="btn-parse" onclick="autoParse()">✦ 解析并填写</button>
+              <span class="parse-result" id="parseResult"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="form-section">基本信息</div>
 
       <div class="f-row">
@@ -1217,15 +1328,15 @@ const PROVIDERS = {
     label: '火山引擎',
     endpoint: 'https://ark.cn-beijing.volces.com/api/v3',
     type: 'video',
-    corsWarning: true,
+    corsWarning: false,
     endpointHint: '火山引擎方舟平台默认接入点，一般不需修改',
-    modelIdHint: '在火山引擎控制台「在线推理」页面找到你的接入点 ID',
+    modelIdHint: '在火山引擎控制台「在线推理 → 接入点」页面查看你的模型 ID',
     models: [
-      { label: 'Seedance 1.5 Lite T2V', value: 'seedance-1-5-lite-t2v-250428' },
-      { label: 'Seedance 1.5 Pro T2V',  value: 'doubao-seedance-1-5-pro-t2v-250528' },
-      { label: 'Seedance 2.0 Lite T2V', value: 'doubao-seedance-2-0-lite-t2v' },
-      { label: 'Seedance 2.0 Pro T2V',  value: 'doubao-seedance-2-0-pro-t2v' },
-      { label: 'Seedance 1.5 I2V (图生视频)', value: 'doubao-seedance-1-5-pro-i2v-250528' },
+      { label: 'Seedance 1.5 Lite T2V',      value: 'seedance-1-5-lite-t2v-250428' },
+      { label: 'Seedance 1.5 Pro T2V',        value: 'doubao-seedance-1-5-pro-t2v-250528' },
+      { label: 'Seedance 1.5 Pro I2V (图生视频)', value: 'doubao-seedance-1-5-pro-i2v-250528' },
+      { label: 'Seedance 2.0 Pro T2V ⚠ 需确认ID', value: 'doubao-seedance-2-0-pro-t2v-250528' },
+      { label: 'Seedance 2.0 Lite T2V ⚠ 需确认ID', value: 'doubao-seedance-2-0-lite-t2v-250528' },
     ],
   },
   openai: {
@@ -1290,12 +1401,13 @@ const CAT = {
 };
 
 const VIDEO_PARAMS = {
-  duration:     { type: 'seg',    label: '时长',   opts: [{l:'5 秒',v:5},{l:'10 秒',v:10}],        def: 5 },
-  aspect_ratio: { type: 'select', label: '画面比例', opts: ['16:9','9:16','1:1','4:3','3:4'],      def: '16:9' },
-  resolution:   { type: 'select', label: '分辨率',  opts: ['480p','720p','1080p'],                  def: '720p' },
-  camera_fixed: { type: 'switch', label: '固定镜头',                                                def: false },
-  watermark:    { type: 'switch', label: '添加水印',                                                def: false },
-  seed:         { type: 'input',  label: '随机种子', ph: '留空为随机',                               def: '' },
+  duration:        { type: 'seg',    label: '时长',    opts: [{l:'5 秒',v:5},{l:'10 秒',v:10}],   def: 5 },
+  aspect_ratio:    { type: 'select', label: '画面比例', opts: ['16:9','9:16','1:1','4:3','3:4'],   def: '16:9' },
+  resolution:      { type: 'select', label: '分辨率',   opts: ['480p','720p','1080p'],              def: '720p' },
+  generate_audio:  { type: 'switch', label: '生成配音 (2.0)',                                       def: false },
+  camera_fixed:    { type: 'switch', label: '固定镜头',                                             def: false },
+  watermark:       { type: 'switch', label: '添加水印',                                             def: false },
+  seed:            { type: 'input',  label: '随机种子',  ph: '留空为随机',                           def: '' },
 };
 
 const IMAGE_PARAMS = {
@@ -1694,13 +1806,14 @@ async function runText(idx, model, prompt) {
 
 function buildVideoParams() {
   const p = {};
-  if (S.params.duration)              p.duration = Number(S.params.duration);
-  if (S.params.aspect_ratio)          p.aspect_ratio = S.params.aspect_ratio;
-  if (S.params.resolution)            p.resolution = S.params.resolution;
-  if (S.params.camera_fixed != null)  p.camera_fixed = S.params.camera_fixed;
-  if (S.params.watermark != null)     p.watermark = S.params.watermark;
+  if (S.params.duration)                p.duration = Number(S.params.duration);
+  if (S.params.aspect_ratio)            p.aspect_ratio = S.params.aspect_ratio;
+  if (S.params.resolution)              p.resolution = S.params.resolution;
+  if (S.params.camera_fixed != null)    p.camera_fixed = S.params.camera_fixed;
+  if (S.params.watermark != null)       p.watermark = S.params.watermark;
+  if (S.params.generate_audio === true) p.generate_audio = true;
   const seed = parseInt(S.params.seed);
-  if (!isNaN(seed))                   p.seed = seed;
+  if (!isNaN(seed))                     p.seed = seed;
   return p;
 }
 
@@ -1823,6 +1936,146 @@ function deleteModel(id) {
   S.slots = S.slots.map(s => s === id ? null : s);
   saveModels();
   renderAll();
+}
+
+// ══════════════════════════════════════════════
+// AUTO PARSE
+// ══════════════════════════════════════════════
+function toggleParse() {
+  const panel = document.getElementById('parsePanel');
+  const icon  = document.getElementById('parseIcon');
+  const open  = panel.classList.toggle('open');
+  icon.classList.toggle('open', open);
+}
+
+function autoParse() {
+  const raw = document.getElementById('parseInput').value.trim();
+  if (!raw) return showParseResult('err', '请先粘贴调用示例');
+
+  const found = {};
+
+  // ── 1. URL → endpoint + path ──
+  const urls = [...raw.matchAll(/https?:\/\/[^\s"'`\\]+/g)].map(m => m[0]);
+  if (urls.length) {
+    const rawUrl = urls[0].replace(/['"`,\\]+$/, '');
+    found.url = rawUrl;
+
+    // Detect provider from URL
+    if      (rawUrl.includes('ark.cn-beijing.volces.com')) found.provider = 'volcengine';
+    else if (rawUrl.includes('openai.com'))                found.provider = 'openai';
+    else if (rawUrl.includes('anthropic.com'))             found.provider = 'anthropic';
+    else if (rawUrl.includes('bigmodel.cn'))               found.provider = 'zhipu';
+    else if (rawUrl.includes('baidubce.com') || rawUrl.includes('qianfan')) found.provider = 'baidu';
+    else                                                   found.provider = 'custom';
+
+    // Extract base endpoint (strip known task paths)
+    const endpointBase = rawUrl
+      .replace(/\/contents\/generations\/tasks.*$/, '')
+      .replace(/\/chat\/completions.*$/, '')
+      .replace(/\/messages.*$/, '')
+      .replace(/\/images\/generations.*$/, '')
+      .replace(/\/completions.*$/, '');
+    found.endpoint = endpointBase;
+  }
+
+  // ── 2. API Key ──
+  const bearerMatch = raw.match(/Bearer\s+([A-Za-z0-9\-_.]+)/i);
+  const xApiMatch   = raw.match(/[xX]-[aA]pi-[kK]ey['":\s]+([A-Za-z0-9\-_.]+)/);
+  const apiKeyVar   = raw.match(/api_?key\s*[=:]\s*["'`]?([A-Za-z0-9\-_.]{10,})["'`]?/i);
+  const rawKey = (bearerMatch?.[1] || xApiMatch?.[1] || apiKeyVar?.[1] || '');
+  // Only use if it looks like a real key, not a placeholder
+  if (rawKey && !/^(your|sk-xxx|xxx|api_key|YOUR|KEY|TOKEN)/i.test(rawKey)) {
+    found.apiKey = rawKey;
+  }
+
+  // ── 3. Model ID ──
+  const modelPatterns = [
+    /"model"\s*:\s*["']([^"']+)["']/,
+    /model\s*=\s*["'`]([^"'`]+)["'`]/,
+    /model:\s*["'`]([^"'`]+)["'`]/,
+    /"model_id"\s*:\s*["']([^"']+)["']/,
+  ];
+  for (const p of modelPatterns) {
+    const m = raw.match(p);
+    if (m?.[1]) { found.modelId = m[1]; break; }
+  }
+
+  // ── 4. Model type inference ──
+  const lc = raw.toLowerCase();
+  if (!found.type) {
+    if (lc.includes('video') || lc.includes('seedance') || lc.includes('cogvideo')) found.type = 'video';
+    else if (lc.includes('image') || lc.includes('dall-e') || lc.includes('imagen')) found.type = 'image';
+    else if (lc.includes('audio') || lc.includes('speech') || lc.includes('tts'))    found.type = 'audio';
+    else found.type = 'text';
+  }
+  // Override from model ID
+  if (found.modelId) {
+    const mid = found.modelId.toLowerCase();
+    if (mid.includes('seedance') || mid.includes('video') || mid.includes('cogvideo')) found.type = 'video';
+    else if (mid.includes('dall-e') || mid.includes('image') || mid.includes('flux'))  found.type = 'image';
+    else if (mid.includes('tts') || mid.includes('audio') || mid.includes('speech'))   found.type = 'audio';
+  }
+
+  // ── 5. Apply to form ──
+  const filled = [];
+
+  if (found.provider) {
+    selectProv(found.provider);
+    filled.push('服务商');
+  }
+
+  if (found.endpoint) {
+    setField('f-endpoint', found.endpoint);
+    filled.push('接入点');
+  }
+
+  if (found.apiKey) {
+    setField('f-apikey', found.apiKey);
+    filled.push('API Key');
+  }
+
+  if (found.modelId) {
+    setField('f-modelid', found.modelId);
+    // Auto suggest name from model ID
+    if (!document.getElementById('f-name').value) {
+      const suggestName = found.modelId.replace(/doubao-/i,'').replace(/-/g,' ').replace(/\b\w/g,c=>c.toUpperCase()).slice(0,30);
+      setField('f-name', suggestName);
+    }
+    filled.push('模型 ID');
+  }
+
+  if (found.type) {
+    document.getElementById('f-type').value = found.type;
+    filled.push('类型');
+  }
+
+  if (filled.length === 0) {
+    showParseResult('err', '未能识别出有效字段，请检查格式');
+    return;
+  }
+
+  const missing = [];
+  if (!found.apiKey)  missing.push('API Key（需手动填写）');
+  if (!found.modelId) missing.push('模型 ID（需手动填写）');
+
+  if (missing.length) {
+    showParseResult('warn', `已填写：${filled.join('、')}　⚠ ${missing.join('、')}`);
+  } else {
+    showParseResult('ok', `✓ 已识别并填写：${filled.join('、')}`);
+  }
+}
+
+function setField(id, val) {
+  const el = document.getElementById(id);
+  el.value = val;
+  el.classList.add('f-filled');
+  setTimeout(() => el.classList.remove('f-filled'), 2000);
+}
+
+function showParseResult(type, msg) {
+  const el = document.getElementById('parseResult');
+  el.className = `parse-result ${type}`;
+  el.textContent = msg;
 }
 
 // ══════════════════════════════════════════════
