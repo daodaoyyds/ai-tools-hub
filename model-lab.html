@@ -2395,7 +2395,7 @@ async function runDashscopeVideo(idx, model, prompt) {
     model: model.modelId,
     input: { prompt },
     parameters: {
-      resolution:    S.params.resolution    || '720P',
+      resolution:    (S.params.resolution || '720P').toUpperCase(),
       ratio:         S.params.ratio         || '16:9',
       duration:      Number(S.params.duration || 5),
       prompt_extend: S.params.prompt_extend !== false,
