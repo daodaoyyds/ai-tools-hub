@@ -1780,7 +1780,7 @@ const PARAM_PROFILES = {
     name: '万相 2.7',
     params: {
       resolution:    { type:'seg',    label:'分辨率',   opts:[{l:'720P',v:'720P'},{l:'1080P',v:'1080P'}],  def:'720P' },
-      ratio:         { type:'select', label:'画面比例', opts:['16:9','9:16','1:1','4:3','3:4'],             def:'16:9' },
+      aspect_ratio:  { type:'select', label:'画面比例', opts:['16:9','9:16','1:1','4:3','3:4'],             def:'16:9' },
       duration:      { type:'seg',    label:'时长',     opts:[{l:'5 秒',v:5},{l:'10 秒',v:10},{l:'15 秒',v:15}], def:5 },
       prompt_extend: { type:'switch', label:'智能改写',                                                     def:true },
       watermark:     { type:'switch', label:'添加水印',                                                     def:false },
@@ -1852,27 +1852,34 @@ function detectProfile(model) {
 // 合并两个方案（取并集，duration 取最长可选项）
 function mergeProfiles(p1key, p2key) {
   if (!p1key && !p2key) return null;
-  if (!p1key) return p2key;
-  if (!p2key) return p1key;
-  if (p1key === p2key) return p1key;
+  if (!p1key) return PARAM_PROFILES[p2key];
+  if (!p2key) return PARAM_PROFILES[p1key];
+  if (p1key === p2key) return PARAM_PROFILES[p1key];
 
   const p1 = PARAM_PROFILES[p1key];
   const p2 = PARAM_PROFILES[p2key];
   const merged = { name: `${p1.name} / ${p2.name}`, params: { ...p2.params } };
-  // Merge p1 params, prefer the one with more options for 'seg'/'select'
+
   for (const [k, v1] of Object.entries(p1.params)) {
     if (!merged.params[k]) {
       merged.params[k] = v1;
     } else {
       const v2 = merged.params[k];
       if (v1.type === 'seg' && v2.type === 'seg') {
-        // Take the union of options
-        const allVals = [...new Map([...v1.opts, ...v2.opts].map(o => [o.v, o])).values()];
-        merged.params[k] = { ...v1, opts: allVals.sort((a,b) => a.v - b.v) };
+        // Union of seg options, deduplicate by uppercase value
+        const seen = new Map();
+        [...v2.opts, ...v1.opts].forEach(o => seen.set(String(o.v).toUpperCase(), o));
+        merged.params[k] = { ...v1, opts: [...seen.values()].sort((a,b) => Number(a.v)||0 - Number(b.v)||0) };
+      } else if (v1.type === 'seg' && v2.type === 'select') {
+        // Prefer seg UI; keep only options common to both (case-insensitive)
+        const selectSet = new Set(v2.opts.map(o => String(o).toUpperCase()));
+        const intersection = v1.opts.filter(o => selectSet.has(String(o.v).toUpperCase()));
+        merged.params[k] = { ...v1, opts: intersection.length ? intersection : v1.opts };
       }
+      // else: keep p2's version as-is
     }
   }
-  return merged; // Return synthetic object (not a key)
+  return merged;
 }
 
 // ══════════════════════════════════════════════
@@ -2396,7 +2403,7 @@ async function runDashscopeVideo(idx, model, prompt) {
     input: { prompt },
     parameters: {
       resolution:    (S.params.resolution || '720P').toUpperCase(),
-      ratio:         S.params.ratio         || '16:9',
+      ratio:         S.params.aspect_ratio  || '16:9',
       duration:      Number(S.params.duration || 5),
       prompt_extend: S.params.prompt_extend !== false,
       watermark:     S.params.watermark     === true,
