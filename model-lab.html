@@ -2312,7 +2312,9 @@ async function pollVideo(idx, model, taskId, base) {
 
 // ── DASHSCOPE VIDEO ──
 async function runDashscopeVideo(idx, model, prompt) {
-  const base = (model.endpoint || 'https://dashscope.aliyuncs.com/api/v1').replace(/\/+$/, '');
+  // 从 endpoint 提取 origin，避免用户粘贴完整 URL 导致路径重复
+  const origin = (() => { try { return new URL(model.endpoint || 'https://dashscope.aliyuncs.com/api/v1').origin; } catch { return 'https://dashscope.aliyuncs.com'; } })();
+  const base = `${origin}/api/v1`;
   const body = {
     model: model.modelId,
     input: { prompt },
@@ -2621,6 +2623,8 @@ function autoParse() {
     // Extract base endpoint (strip known task paths)
     const endpointBase = rawUrl
       .replace(/\/contents\/generations\/tasks.*$/, '')
+      .replace(/\/services\/aigc\/.*$/, '')
+      .replace(/\/tasks\/.*$/, '')
       .replace(/\/chat\/completions.*$/, '')
       .replace(/\/messages.*$/, '')
       .replace(/\/images\/generations.*$/, '')
