@@ -1681,6 +1681,16 @@ const PROVIDERS = {
       { label: 'ERNIE-3.5', value: 'ERNIE-3.5-8K' },
     ],
   },
+  dashscope: {
+    label: '阿里云百炼',
+    endpoint: 'https://dashscope.aliyuncs.com/api/v1',
+    type: 'video',
+    endpointHint: '阿里云百炼平台默认接入点，国内用 dashscope.aliyuncs.com，海外用 dashscope-intl.aliyuncs.com',
+    modelIdHint: '在阿里云百炼控制台查看，如 wan2.7-t2v-2026-04-25',
+    models: [
+      { label: '万相 2.7 T2V (文生视频)', value: 'wan2.7-t2v-2026-04-25' },
+    ],
+  },
   custom: {
     label: '自定义',
     endpoint: '',
@@ -1731,6 +1741,17 @@ const PARAM_PROFILES = {
       seed:         { type:'input',  label:'随机种子',  ph:'留空为随机',                           def:'' },
     }
   },
+  'wan2-7': {
+    name: '万相 2.7',
+    params: {
+      resolution:    { type:'seg',    label:'分辨率',   opts:[{l:'720P',v:'720P'},{l:'1080P',v:'1080P'}],  def:'720P' },
+      ratio:         { type:'select', label:'画面比例', opts:['16:9','9:16','1:1','4:3','3:4'],             def:'16:9' },
+      duration:      { type:'seg',    label:'时长',     opts:[{l:'5 秒',v:5},{l:'10 秒',v:10},{l:'15 秒',v:15}], def:5 },
+      prompt_extend: { type:'switch', label:'智能改写',                                                     def:true },
+      watermark:     { type:'switch', label:'添加水印',                                                     def:false },
+      seed:          { type:'input',  label:'随机种子',  ph:'留空为随机',                                   def:'' },
+    }
+  },
   'video-default': {
     name: '视频生成',
     params: {
@@ -1779,6 +1800,7 @@ function detectProfile(model) {
     if (mid.includes('seedance-2') || mid.includes('seedance-2-0') || mid.match(/seedance.*2[-_.]?0/)) return 'seedance-2';
     if (mid.includes('seedance-1') || mid.includes('seedance-1-5') || mid.includes('seedance')) return 'seedance-1';
     if (mid.includes('cogvideo'))  return 'cogvideo';
+    if (mid.includes('wan2') || mid.includes('wanxiang')) return 'wan2-7';
     return 'video-default';
   }
   if (type === 'image') {
@@ -2171,7 +2193,10 @@ async function runPanel(idx, model, prompt) {
   setBody(idx, `<div class="loading"><div class="spinner"></div><div class="loading-text">正在生成…</div><div class="loading-sub">通常需要 30 秒到几分钟</div></div>`);
 
   try {
-    if      (model.type === 'video') await runVideo(idx, model, prompt);
+    if      (model.type === 'video') {
+      if (model.provider === 'dashscope') await runDashscopeVideo(idx, model, prompt);
+      else await runVideo(idx, model, prompt);
+    }
     else if (model.type === 'image') await runImage(idx, model, prompt);
     else if (model.type === 'text')  await runText(idx, model, prompt);
     else throw new Error('该模型类型暂不支持自动调用');
@@ -2278,6 +2303,109 @@ async function pollVideo(idx, model, taskId, base) {
         }
       } catch (_) {}
     }, 5000);
+    S.pollingTimers[`${idx}-${taskId}`] = t;
+  });
+}
+
+// ── DASHSCOPE VIDEO ──
+async function runDashscopeVideo(idx, model, prompt) {
+  const base = (model.endpoint || 'https://dashscope.aliyuncs.com/api/v1').replace(/\/+$/, '');
+  const body = {
+    model: model.modelId,
+    input: { prompt },
+    parameters: {
+      resolution:    S.params.resolution    || '720P',
+      ratio:         S.params.ratio         || '16:9',
+      duration:      Number(S.params.duration || 5),
+      prompt_extend: S.params.prompt_extend !== false,
+      watermark:     S.params.watermark     === true,
+      ...(S.params.seed && !isNaN(parseInt(S.params.seed)) ? { seed: parseInt(S.params.seed) } : {}),
+    },
+  };
+
+  const res = await fetch('/api/proxy', {
+    method: 'POST',
+    headers: {
+      'Content-Type':    'application/json',
+      'X-Target-Url':    `${base}/services/aigc/video-generation/video-synthesis`,
+      'X-Api-Key':       model.apiKey,
+      'X-Extra-Headers': JSON.stringify({ 'X-DashScope-Async': 'enable' }),
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) { const t = await res.text(); throw new Error(`API ${res.status}: ${t.slice(0, 200)}`); }
+  const data = await res.json();
+  const taskId = data.output?.task_id || data.task_id;
+  if (!taskId) throw new Error('未获取到 task_id：' + JSON.stringify(data).slice(0, 200));
+
+  setBody(idx, `<div class="loading"><div class="spinner"></div><div class="loading-text">任务已提交，轮询中…</div><div class="loading-sub">Task ID: ${taskId}<br>万相视频通常需要 1～5 分钟，每 15 秒查询一次</div></div>`);
+  await pollDashscopeVideo(idx, model, taskId, base);
+}
+
+async function pollDashscopeVideo(idx, model, taskId, base) {
+  let n = 0;
+  return new Promise((resolve, reject) => {
+    const t = setInterval(async () => {
+      n++;
+      if (n > 24) { clearInterval(t); reject(new Error('等待超时（6 分钟），请稍后在控制台查看任务')); return; }
+      try {
+        const res = await fetch('/api/proxy', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Target-Url': `${base}/tasks/${taskId}`,
+            'X-Api-Key':    model.apiKey,
+            'X-Method':     'GET',
+          },
+          body: JSON.stringify({}),
+        });
+        const data   = await res.json();
+        const status = (data.output?.task_status || '').toUpperCase();
+        setBody(idx, `<div class="loading"><div class="spinner"></div><div class="loading-text">生成中… (${n * 15}s)</div><div class="loading-sub">状态：${status || 'PENDING'}</div></div>`);
+
+        if (status === 'SUCCEEDED') {
+          clearInterval(t);
+          const url = data.output?.video_url;
+          if (!url) { reject(new Error('生成成功但未找到视频链接：' + JSON.stringify(data).slice(0, 300))); return; }
+
+          const elapsed = n * 15;
+          const prompt  = document.getElementById('promptInput').value.trim();
+          const tags    = [
+            S.params.duration  ? S.params.duration + 's' : '',
+            S.params.ratio     || '',
+            S.params.resolution|| '',
+            elapsed + 's 生成',
+          ].filter(Boolean);
+
+          setStatus(idx, 'done');
+          setBody(idx, `
+            <div class="vcard">
+              <div class="vcard-video-wrap" onclick="openVidModal('${url}')">
+                <video preload="metadata" src="${url}"></video>
+                <div class="vcard-overlay"><div class="vcard-play-icon">▶</div></div>
+                <span class="vcard-done-badge">✓ 完成</span>
+              </div>
+              <div class="vcard-info">
+                <div class="vcard-prompt">${esc(trunc(prompt, 100))}</div>
+                <div class="vcard-tags">
+                  ${tags.map(t => `<span class="vcard-tag">${t}</span>`).join('')}
+                  <span class="vcard-tag" style="color:var(--amber)">⚠ 链接 24h 有效</span>
+                </div>
+                <div class="vcard-actions">
+                  <a href="${url}" target="_blank" class="vcard-dl">↗ 下载视频</a>
+                </div>
+              </div>
+            </div>`);
+
+          addHistory({ type: 'video', modelName: model.name, modelId: model.id, prompt, params: { ...S.params }, url, elapsed });
+          resolve();
+        } else if (status === 'FAILED' || status === 'CANCELED') {
+          clearInterval(t);
+          reject(new Error(`任务失败：${data.output?.message || '未知原因'}`));
+        }
+      } catch (_) {}
+    }, 15000);
     S.pollingTimers[`${idx}-${taskId}`] = t;
   });
 }
@@ -2478,7 +2606,9 @@ function autoParse() {
     found.url = rawUrl;
 
     // Detect provider from URL
-    if      (rawUrl.includes('ark.cn-beijing.volces.com')) found.provider = 'volcengine';
+    if      (rawUrl.includes('ark.cn-beijing.volces.com'))  found.provider = 'volcengine';
+    else if (rawUrl.includes('dashscope.aliyuncs.com') ||
+             rawUrl.includes('dashscope-intl.aliyuncs.com')) found.provider = 'dashscope';
     else if (rawUrl.includes('openai.com'))                found.provider = 'openai';
     else if (rawUrl.includes('anthropic.com'))             found.provider = 'anthropic';
     else if (rawUrl.includes('bigmodel.cn'))               found.provider = 'zhipu';

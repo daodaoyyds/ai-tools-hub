@@ -16,11 +16,16 @@ export default async function handler(req, res) {
   }
 
   try {
+    const extraHeaders = req.headers['x-extra-headers']
+      ? JSON.parse(req.headers['x-extra-headers'])
+      : {};
+
     const options = {
       method,
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
+        ...extraHeaders,
       },
     };
 
