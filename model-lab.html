@@ -308,7 +308,7 @@
       border-style: solid;
       border-color: var(--blue-rim);
       background: var(--blue-tint);
-      cursor: default;
+      cursor: pointer;
       justify-content: space-between;
       padding: 0 10px 0 14px;
     }
@@ -342,6 +342,36 @@
     }
 
     .slot-bar-actions { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+
+    /* slot dropdown */
+    .slot-dropdown {
+      position: fixed;
+      z-index: 200;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      box-shadow: 0 8px 28px rgba(0,0,0,0.12);
+      min-width: 220px;
+      max-height: 320px;
+      overflow-y: auto;
+      display: none;
+    }
+    .slot-dropdown.open { display: block; }
+    .slot-dd-item {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 9px 14px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: background 0.1s;
+    }
+    .slot-dd-item:hover { background: var(--surface-2); }
+    .slot-dd-item.active { background: var(--blue-tint); color: var(--blue); }
+    .slot-dd-item-name { font-weight: 500; }
+    .slot-dd-item-sub  { font-size: 11px; color: var(--ink-faint); font-weight: 300; }
+    .slot-dd-empty { padding: 14px; font-size: 13px; color: var(--ink-faint); text-align: center; }
+    .slot-dd-sep { height: 1px; background: var(--border); margin: 4px 0; }
 
     .btn-ghost {
       background: var(--surface);
@@ -1416,6 +1446,8 @@
         <button class="btn-run" id="runBtn" onclick="runComparison()" disabled>▶ 生成</button>
       </div>
     </div>
+    <!-- slot model picker dropdown -->
+    <div class="slot-dropdown" id="slotDropdown"></div>
 
     <!-- PROMPT -->
     <div class="prompt-bar">
@@ -1935,7 +1967,6 @@ function renderSlots() {
   // slot 0
   const el0 = document.getElementById('slot0');
   const id0 = S.slots[0];
-  document.getElementById('slot0-label').textContent = isSingle ? '选择模型' : '选择模型 A';
   if (!id0) {
     el0.className = 'slot';
     el0.innerHTML = `<span style="font-size:15px">＋</span><span id="slot0-label">${isSingle?'选择模型':'选择模型 A'}</span>`;
@@ -2140,11 +2171,56 @@ function modelClick(id) {
   renderAll();
 }
 
+let _pendingSlot = null;
+
 function slotClick(i) {
-  if (!S.slots[i] && S.models.length) {
-    const unused = S.models.find(m => !S.slots.includes(m.id));
-    if (unused) { S.slots[i] = unused.id; renderAll(); }
+  if (S.models.length === 0) return;
+  _pendingSlot = i;
+  const dd = document.getElementById('slotDropdown');
+
+  if (!S.models.length) {
+    dd.innerHTML = `<div class="slot-dd-empty">还没有模型，请先添加</div>`;
+  } else {
+    const otherSlotId = S.slots[i === 0 ? 1 : 0];
+    dd.innerHTML = S.models.map(m => {
+      const isOther = m.id === otherSlotId;
+      const isCurrent = m.id === S.slots[i];
+      return `<div class="slot-dd-item ${isCurrent ? 'active' : ''}"
+        onclick="pickSlotModel('${m.id}')" title="${isOther ? '另一个槽位已使用' : ''}">
+        <span style="font-size:15px">${CAT[m.type]?.icon||'⚙'}</span>
+        <div>
+          <div class="slot-dd-item-name">${esc(m.name)}${isOther ? ' <span style="font-size:11px;color:var(--ink-faint)">(已在另一槽)</span>' : ''}</div>
+          <div class="slot-dd-item-sub">${esc(m.provider||'')} · ${esc(trunc(m.modelId||'',20))}</div>
+        </div>
+      </div>`;
+    }).join('');
   }
+
+  // position below the clicked slot element
+  const slotEl = document.getElementById('slot' + i);
+  const rect = slotEl.getBoundingClientRect();
+  dd.style.top  = (rect.bottom + 6) + 'px';
+  dd.style.left = rect.left + 'px';
+  dd.classList.add('open');
+
+  // close on outside click
+  setTimeout(() => document.addEventListener('click', _closeDdOutside, { once: true }), 0);
+}
+
+function _closeDdOutside(e) {
+  const dd = document.getElementById('slotDropdown');
+  if (!dd.contains(e.target)) {
+    dd.classList.remove('open');
+    _pendingSlot = null;
+  }
+}
+
+function pickSlotModel(id) {
+  if (_pendingSlot === null) return;
+  S.slots[_pendingSlot] = id;
+  document.getElementById('slotDropdown').classList.remove('open');
+  _pendingSlot = null;
+  renderAll();
 }
 
 function removeSlot(i) { S.slots[i] = null; renderAll(); }
@@ -2535,7 +2611,7 @@ function selectProv(key) {
 function highlightProv(key) {
   document.querySelectorAll('.prov-chip').forEach(c => c.classList.remove('sel'));
   const chips = document.querySelectorAll('.prov-chip');
-  const keys = ['volcengine','openai','anthropic','zhipu','baidu','custom'];
+  const keys = ['volcengine','openai','anthropic','zhipu','baidu','dashscope','custom'];
   const idx = keys.indexOf(key);
   if (idx >= 0 && chips[idx]) chips[idx].classList.add('sel');
 }
