@@ -1750,7 +1750,6 @@ const PARAM_PROFILES = {
     params: {
       duration:       { type:'seg',    label:'时长',    opts:[{l:'5 秒',v:5},{l:'10 秒',v:10},{l:'15 秒',v:15}], def:5 },
       aspect_ratio:   { type:'select', label:'画面比例', opts:['16:9','9:16','1:1','4:3','3:4'],                  def:'16:9' },
-      resolution:     { type:'select', label:'分辨率',   opts:['480p','720p','1080p'],                            def:'720p' },
       generate_audio: { type:'switch', label:'生成配音',                                                          def:false },
       camera_fixed:   { type:'switch', label:'固定镜头',                                                          def:false },
       watermark:      { type:'switch', label:'添加水印',                                                          def:false },
@@ -1762,7 +1761,6 @@ const PARAM_PROFILES = {
     params: {
       duration:     { type:'seg',    label:'时长',    opts:[{l:'5 秒',v:5},{l:'10 秒',v:10}],    def:5 },
       aspect_ratio: { type:'select', label:'画面比例', opts:['16:9','9:16','1:1','4:3','3:4'],   def:'16:9' },
-      resolution:   { type:'select', label:'分辨率',   opts:['480p','720p','1080p'],              def:'720p' },
       camera_fixed: { type:'switch', label:'固定镜头',                                            def:false },
       watermark:    { type:'switch', label:'添加水印',                                            def:false },
       seed:         { type:'input',  label:'随机种子',  ph:'留空为随机',                           def:'' },
@@ -2541,7 +2539,6 @@ function buildVideoParams() {
   const p = {};
   if (S.params.duration)                p.duration = Number(S.params.duration);
   if (S.params.aspect_ratio)            p.ratio = S.params.aspect_ratio;
-  if (S.params.resolution)              p.resolution = S.params.resolution;
   if (S.params.camera_fixed != null)    p.camera_fixed = S.params.camera_fixed;
   if (S.params.watermark != null)       p.watermark = S.params.watermark;
   if (S.params.generate_audio === true) p.generate_audio = true;
