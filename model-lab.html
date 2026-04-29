@@ -687,6 +687,11 @@
       flex: 1;
       color: var(--ink);
     }
+    .panel-timing {
+      font-size: 11px;
+      color: var(--ink-faint);
+      font-weight: 400;
+    }
 
     .status-pill {
       font-size: 11px;
@@ -1528,6 +1533,7 @@
         <div class="panel" id="panel0">
           <div class="panel-head">
             <span class="panel-name" id="panel0-name">—</span>
+            <span class="panel-timing" id="panel0-timing"></span>
             <span class="status-pill s-idle" id="panel0-status">待机</span>
           </div>
           <div class="panel-body" id="panel0-body">
@@ -1537,6 +1543,7 @@
         <div class="panel" id="panel1">
           <div class="panel-head">
             <span class="panel-name" id="panel1-name">—</span>
+            <span class="panel-timing" id="panel1-timing"></span>
             <span class="status-pill s-idle" id="panel1-status">待机</span>
           </div>
           <div class="panel-body" id="panel1-body">
@@ -2699,10 +2706,11 @@ async function runImage(idx, model, prompt, t0) {
   const data = await res.json();
   const elapsed = fmt(Date.now() - t0);
   setStatus(idx,'done');
+  setPanelTiming(idx, `总计 ${elapsed}`);
   setBody(idx, data.data.map(d => `
     <div class="result-card">
       <img src="${d.url}" alt="generated image">
-      <div class="result-foot"><span>✓ 完成 · ${elapsed}</span><a href="${d.url}" target="_blank">↗ 查看原图</a></div>
+      <div class="result-foot"><a href="${d.url}" target="_blank">↗ 查看原图</a></div>
     </div>`).join(''));
 }
 
@@ -2727,7 +2735,8 @@ async function runText(idx, model, prompt, t0) {
   const elapsed = fmt(Date.now() - t0);
   const ttfr = fmt(tFirst - t0);
   setStatus(idx,'done');
-  setBody(idx, `<div class="result-card"><div class="result-text">${esc(text)}</div><div class="result-foot"><span>✓ 完成 · 首次响应 ${ttfr} · 总计 ${elapsed}${data.usage?.total_tokens ? ` · ${data.usage.total_tokens} tokens` : ''}</span></div></div>`);
+  setPanelTiming(idx, `首次响应 ${ttfr} · 总计 ${elapsed}${data.usage?.total_tokens ? ` · ${data.usage.total_tokens} tokens` : ''}`);
+  setBody(idx, `<div class="result-card"><div class="result-text">${esc(text)}</div></div>`);
 }
 
 // ── ANALYZE (Qwen-Omni 多模态) ──
@@ -2771,7 +2780,8 @@ async function runOmniAnalyze(idx, model, prompt, t0) {
   const renderStream = () => {
     const ttfr = tFirst ? fmt(tFirst - t0) : '…';
     const elapsed = fmt(Date.now() - t0);
-    setBody(idx, `<div class="result-card"><div class="result-text" style="white-space:pre-wrap">${esc(text)}<span class="cursor-blink">▍</span></div><div class="result-foot"><span>首次响应 ${ttfr} · 已用 ${elapsed}</span></div></div>`);
+    setPanelTiming(idx, `首次响应 ${ttfr} · 已用 ${elapsed}`);
+    setBody(idx, `<div class="result-card"><div class="result-text" style="white-space:pre-wrap">${esc(text)}<span class="cursor-blink">▍</span></div></div>`);
   };
 
   while (true) {
@@ -2801,7 +2811,8 @@ async function runOmniAnalyze(idx, model, prompt, t0) {
   const ttfr = tFirst ? fmt(tFirst - t0) : '—';
   const elapsed = fmt(Date.now() - t0);
   setStatus(idx, 'done');
-  setBody(idx, `<div class="result-card"><div class="result-text" style="white-space:pre-wrap">${esc(text)}</div><div class="result-foot"><span>✓ 完成 · 首次响应 ${ttfr} · 总计 ${elapsed}${usage ? ` · ${usage.total_tokens} tokens` : ''}</span></div></div>`);
+  setPanelTiming(idx, `首次响应 ${ttfr} · 总计 ${elapsed}${usage ? ` · ${usage.total_tokens} tokens` : ''}`);
+  setBody(idx, `<div class="result-card"><div class="result-text" style="white-space:pre-wrap">${esc(text)}</div></div>`);
   addHistory({ type:'analyze', modelName: model.name, modelId: model.id, prompt, params:{...S.params}, mediaUrl: S.refImageUrl, text });
 }
 
@@ -2827,6 +2838,7 @@ function setStatus(i, s) {
   el.textContent = map[s][1];
 }
 function setBody(i, html) { document.getElementById(`panel${i}-body`).innerHTML = html; }
+function setPanelTiming(i, text) { const el = document.getElementById(`panel${i}-timing`); if (el) el.textContent = text; }
 
 // ══════════════════════════════════════════════
 // DRAWER
