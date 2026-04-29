@@ -1449,6 +1449,21 @@
     <!-- slot model picker dropdown -->
     <div class="slot-dropdown" id="slotDropdown"></div>
 
+    <!-- REFERENCE IMAGE (i2v 模型时显示) -->
+    <div class="prompt-bar" id="refImageBar" style="display:none">
+      <div class="prompt-wrap">
+        <span class="prompt-label">参考图</span>
+        <input
+          class="prompt-input"
+          id="refImageInput"
+          type="text"
+          placeholder="粘贴公网图片 URL（JPEG/PNG/WEBP，≥400px，≤10MB）"
+          oninput="S.refImageUrl = this.value.trim()"
+          style="height:38px"
+        />
+      </div>
+    </div>
+
     <!-- PROMPT -->
     <div class="prompt-bar">
       <div class="prompt-wrap">
@@ -1721,9 +1736,11 @@ const PROVIDERS = {
     endpoint: 'https://dashscope.aliyuncs.com/api/v1',
     type: 'video',
     endpointHint: '阿里云百炼平台默认接入点，国内用 dashscope.aliyuncs.com，海外用 dashscope-intl.aliyuncs.com',
-    modelIdHint: '在阿里云百炼控制台查看，如 wan2.7-t2v-2026-04-25',
+    modelIdHint: '在阿里云百炼控制台查看，如 wan2.7-t2v-2026-04-25 或 happyhorse-1.0-r2v',
     models: [
-      { label: '万相 2.7 T2V (文生视频)', value: 'wan2.7-t2v-2026-04-25' },
+      { label: '万相 2.7 T2V (文生视频)',          value: 'wan2.7-t2v-2026-04-25' },
+      { label: 'HappyHorse 1.0 T2V (文生视频)',    value: 'happyhorse-1.0-t2v' },
+      { label: 'HappyHorse 1.0 R2V (参考图生视频)', value: 'happyhorse-1.0-r2v' },
     ],
   },
   custom: {
@@ -1785,6 +1802,16 @@ const PARAM_PROFILES = {
       seed:          { type:'input',  label:'随机种子',  ph:'留空为随机',                                   def:'' },
     }
   },
+  'happyhorse': {
+    name: 'HappyHorse 1.0',
+    params: {
+      resolution:    { type:'seg',    label:'分辨率',   opts:[{l:'720P',v:'720P'},{l:'1080P',v:'1080P'}],  def:'1080P' },
+      aspect_ratio:  { type:'select', label:'画面比例', opts:['16:9','9:16','1:1','4:3','3:4'],             def:'16:9' },
+      duration:      { type:'seg',    label:'时长',     opts:[{l:'3 秒',v:3},{l:'5 秒',v:5},{l:'10 秒',v:10},{l:'15 秒',v:15}], def:5 },
+      watermark:     { type:'switch', label:'添加水印',                                                     def:false },
+      seed:          { type:'input',  label:'随机种子',  ph:'留空为随机',                                   def:'' },
+    }
+  },
   'video-default': {
     name: '视频生成',
     params: {
@@ -1834,6 +1861,7 @@ function detectProfile(model) {
     if (mid.includes('seedance-1') || mid.includes('seedance-1-5') || mid.includes('seedance')) return 'seedance-1';
     if (mid.includes('cogvideo'))  return 'cogvideo';
     if (mid.includes('wan2') || mid.includes('wanxiang')) return 'wan2-7';
+    if (mid.includes('happyhorse')) return 'happyhorse';
     return 'video-default';
   }
   if (type === 'image') {
@@ -1895,7 +1923,23 @@ const S = {
   editId: null,
   currentProv: null,
   pollingTimers: {},
+  refImageUrl: '',
 };
+
+function isI2vModel(model) {
+  if (!model) return false;
+  const mid = (model.modelId || '').toLowerCase();
+  return mid.includes('i2v') || mid.includes('r2v') || mid.includes('image-to-video') || mid.includes('reference-to-video');
+}
+
+function anySlotNeedsRefImage() {
+  return S.slots.some(id => id && isI2vModel(getModel(id)));
+}
+
+function updateRefImageUI() {
+  const bar = document.getElementById('refImageBar');
+  if (bar) bar.style.display = anySlotNeedsRefImage() ? '' : 'none';
+}
 
 function loadModels() {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }
@@ -1920,6 +1964,7 @@ function renderAll() {
   renderSlots();
   renderPanels();
   renderParams();
+  updateRefImageUI();
   updateRunBtn();
 }
 
@@ -2320,9 +2365,16 @@ async function resumeDashscopePoll(idx, modelId, taskId) {
 async function runVideo(idx, model, prompt) {
   const base = model.endpoint || 'https://ark.cn-beijing.volces.com/api/v3';
   const videoParams = buildVideoParams();
+  const isI2v = isI2vModel(model);
+  if (isI2v && !S.refImageUrl) {
+    throw new Error('该模型需要参考图，请在「参考图」输入框粘贴公网图片 URL');
+  }
+  const content = isI2v
+    ? [{ type: 'image_url', image_url: { url: S.refImageUrl } }, { type: 'text', text: prompt }]
+    : [{ type: 'text', text: prompt }];
   const body = {
     model: model.modelId,
-    content: [{ type: 'text', text: prompt }],
+    content,
     ...videoParams,
   };
 
@@ -2422,9 +2474,16 @@ async function runDashscopeVideo(idx, model, prompt) {
   // 从 endpoint 提取 origin，避免用户粘贴完整 URL 导致路径重复
   const origin = (() => { try { return new URL(model.endpoint || 'https://dashscope.aliyuncs.com/api/v1').origin; } catch { return 'https://dashscope.aliyuncs.com'; } })();
   const base = `${origin}/api/v1`;
+  const isI2v = isI2vModel(model);
+  if (isI2v && !S.refImageUrl) {
+    throw new Error('该模型需要参考图，请在「参考图」输入框粘贴公网图片 URL');
+  }
+  const input = isI2v
+    ? { prompt, media: [{ type: 'reference_image', url: S.refImageUrl }] }
+    : { prompt };
   const body = {
     model: model.modelId,
-    input: { prompt },
+    input,
     parameters: {
       resolution:    (S.params.resolution || '720P').toUpperCase(),
       ratio:         S.params.aspect_ratio  || '16:9',
