@@ -2079,7 +2079,7 @@ function renderList() {
   filtered.forEach(m => { (byType[m.type] = byType[m.type]||[]).push(m); });
 
   let html = '';
-  ['video','image','text','audio'].forEach(type => {
+  ['video','image','text','audio','analyze'].forEach(type => {
     if (!byType[type]) return;
     const c = CAT[type] || { icon:'⚙', label: type };
     html += `<div class="cat-label">${c.icon} ${c.label}</div>`;
