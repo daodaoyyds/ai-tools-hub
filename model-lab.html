@@ -705,8 +705,9 @@
       flex-direction: column;
       gap: 14px;
     }
-    .panel-body::-webkit-scrollbar { width: 3px; }
-    .panel-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    .panel-body::-webkit-scrollbar { width: 5px; }
+    .panel-body::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 3px; }
+    .panel-body::-webkit-scrollbar-thumb:hover { background: var(--ink-faint); }
 
     .panel-placeholder {
       flex: 1;
@@ -2411,15 +2412,16 @@ async function runComparison() {
 async function runPanel(idx, model, prompt) {
   setStatus(idx,'running');
   setBody(idx, `<div class="loading"><div class="spinner"></div><div class="loading-text">正在生成…</div><div class="loading-sub">通常需要 30 秒到几分钟</div></div>`);
+  const t0 = Date.now();
 
   try {
     if      (model.type === 'video') {
-      if (model.provider === 'dashscope') await runDashscopeVideo(idx, model, prompt);
-      else await runVideo(idx, model, prompt);
+      if (model.provider === 'dashscope') await runDashscopeVideo(idx, model, prompt, t0);
+      else await runVideo(idx, model, prompt, t0);
     }
-    else if (model.type === 'image') await runImage(idx, model, prompt);
-    else if (model.type === 'text')  await runText(idx, model, prompt);
-    else if (model.type === 'analyze') await runOmniAnalyze(idx, model, prompt);
+    else if (model.type === 'image') await runImage(idx, model, prompt, t0);
+    else if (model.type === 'text')  await runText(idx, model, prompt, t0);
+    else if (model.type === 'analyze') await runOmniAnalyze(idx, model, prompt, t0);
     else throw new Error('该模型类型暂不支持自动调用');
   } catch (e) {
     setStatus(idx,'error');
@@ -2674,7 +2676,9 @@ async function pollDashscopeVideo(idx, model, taskId, base) {
 }
 
 // ── IMAGE ──
-async function runImage(idx, model, prompt) {
+function fmt(ms) { return ms < 60000 ? `${(ms/1000).toFixed(1)}s` : `${(ms/60000).toFixed(1)}m`; }
+
+async function runImage(idx, model, prompt, t0) {
   const base = model.endpoint || 'https://api.openai.com';
   const res = await fetch(`${base}/v1/images/generations`, {
     method: 'POST',
@@ -2683,16 +2687,17 @@ async function runImage(idx, model, prompt) {
   });
   if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.error?.message||`HTTP ${res.status}`); }
   const data = await res.json();
+  const elapsed = fmt(Date.now() - t0);
   setStatus(idx,'done');
   setBody(idx, data.data.map(d => `
     <div class="result-card">
       <img src="${d.url}" alt="generated image">
-      <div class="result-foot"><span>✓ 生成完成</span><a href="${d.url}" target="_blank">↗ 查看原图</a></div>
+      <div class="result-foot"><span>✓ 完成 · ${elapsed}</span><a href="${d.url}" target="_blank">↗ 查看原图</a></div>
     </div>`).join(''));
 }
 
 // ── TEXT ──
-async function runText(idx, model, prompt) {
+async function runText(idx, model, prompt, t0) {
   const base = model.endpoint || 'https://api.openai.com';
   const isAnthropic = model.provider === 'anthropic';
   const headers = { 'Content-Type':'application/json' };
@@ -2706,14 +2711,17 @@ async function runText(idx, model, prompt) {
   const path = isAnthropic ? '/v1/messages' : '/v1/chat/completions';
   const res = await fetch(`${base}${path}`, { method:'POST', headers, body: JSON.stringify(body) });
   if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.error?.message||e.message||`HTTP ${res.status}`); }
+  const tFirst = Date.now();
   const data = await res.json();
   const text = data.choices?.[0]?.message?.content || data.content?.[0]?.text || JSON.stringify(data);
+  const elapsed = fmt(Date.now() - t0);
+  const ttfr = fmt(tFirst - t0);
   setStatus(idx,'done');
-  setBody(idx, `<div class="result-card"><div class="result-text">${esc(text)}</div><div class="result-foot"><span>✓ 完成 · ${data.usage?.total_tokens||'?'} tokens</span></div></div>`);
+  setBody(idx, `<div class="result-card"><div class="result-text">${esc(text)}</div><div class="result-foot"><span>✓ 完成 · 首次响应 ${ttfr} · 总计 ${elapsed}${data.usage?.total_tokens ? ` · ${data.usage.total_tokens} tokens` : ''}</span></div></div>`);
 }
 
 // ── ANALYZE (Qwen-Omni 多模态) ──
-async function runOmniAnalyze(idx, model, prompt) {
+async function runOmniAnalyze(idx, model, prompt, t0) {
   if (!S.refImageUrl) throw new Error('请先上传或粘贴待分析的视频/图片 URL');
   const base = (model.endpoint || 'https://dashscope.aliyuncs.com/compatible-mode/v1').replace(/\/+$/,'');
   const isVideoUrl = /\.(mp4|mov|avi|webm|mkv|flv|wmv)(\?|$)/i.test(S.refImageUrl);
@@ -2748,9 +2756,12 @@ async function runOmniAnalyze(idx, model, prompt) {
 
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
-  let buffer = '', text = '', usage = null;
+  let buffer = '', text = '', usage = null, tFirst = null;
+
   const renderStream = () => {
-    setBody(idx, `<div class="result-card"><div class="result-text" style="white-space:pre-wrap">${esc(text)}<span class="cursor-blink">▍</span></div></div>`);
+    const ttfr = tFirst ? fmt(tFirst - t0) : '…';
+    const elapsed = fmt(Date.now() - t0);
+    setBody(idx, `<div class="result-card"><div class="result-text" style="white-space:pre-wrap">${esc(text)}<span class="cursor-blink">▍</span></div><div class="result-foot"><span>首次响应 ${ttfr} · 已用 ${elapsed}</span></div></div>`);
   };
 
   while (true) {
@@ -2767,14 +2778,20 @@ async function runOmniAnalyze(idx, model, prompt) {
       try {
         const obj = JSON.parse(payload);
         const delta = obj.choices?.[0]?.delta?.content;
-        if (typeof delta === 'string') { text += delta; renderStream(); }
+        if (typeof delta === 'string' && delta) {
+          if (!tFirst) tFirst = Date.now();
+          text += delta;
+          renderStream();
+        }
         if (obj.usage) usage = obj.usage;
       } catch(_) {}
     }
   }
 
+  const ttfr = tFirst ? fmt(tFirst - t0) : '—';
+  const elapsed = fmt(Date.now() - t0);
   setStatus(idx, 'done');
-  setBody(idx, `<div class="result-card"><div class="result-text" style="white-space:pre-wrap">${esc(text)}</div><div class="result-foot"><span>✓ 完成${usage?` · ${usage.total_tokens} tokens`:''}</span></div></div>`);
+  setBody(idx, `<div class="result-card"><div class="result-text" style="white-space:pre-wrap">${esc(text)}</div><div class="result-foot"><span>✓ 完成 · 首次响应 ${ttfr} · 总计 ${elapsed}${usage ? ` · ${usage.total_tokens} tokens` : ''}</span></div></div>`);
   addHistory({ type:'analyze', modelName: model.name, modelId: model.id, prompt, params:{...S.params}, mediaUrl: S.refImageUrl, text });
 }
 
