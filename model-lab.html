@@ -1449,19 +1449,19 @@
     <!-- slot model picker dropdown -->
     <div class="slot-dropdown" id="slotDropdown"></div>
 
-    <!-- REFERENCE IMAGE (i2v 模型时显示) -->
+    <!-- REFERENCE MEDIA (i2v / analyze 模型时显示) -->
     <div class="prompt-bar" id="refImageBar" style="display:none">
       <div class="prompt-wrap" style="gap:8px">
-        <span class="prompt-label">参考图</span>
+        <span class="prompt-label" id="refMediaLabel">参考图</span>
         <input
           class="prompt-input"
           id="refImageInput"
           type="text"
-          placeholder="粘贴公网 URL，或点击右侧按钮上传本地图片"
+          placeholder="粘贴公网 URL，或点击右侧按钮上传本地文件"
           oninput="S.refImageUrl = this.value.trim(); updateRefImagePreview()"
           style="height:38px"
         />
-        <input type="file" id="refImageFile" accept="image/jpeg,image/png,image/webp" style="display:none" onchange="uploadRefImage(this)" />
+        <input type="file" id="refImageFile" style="display:none" onchange="uploadRefImage(this)" />
         <button class="btn-ghost" onclick="document.getElementById('refImageFile').click()" id="refUploadBtn" style="white-space:nowrap">📎 上传</button>
         <span id="refImageStatus" style="font-size:12px;color:var(--ink-faint);min-width:80px"></span>
       </div>
@@ -1592,6 +1592,9 @@
         <div class="prov-chip" onclick="selectProv('dashscope')">
           <span class="prov-icon">阿</span>阿里云百炼
         </div>
+        <div class="prov-chip" onclick="selectProv('dashscope-omni')">
+          <span class="prov-icon">Ω</span>百炼 Omni
+        </div>
         <div class="prov-chip" onclick="selectProv('custom')">
           <span class="prov-icon">⚙</span>自定义
         </div>
@@ -1633,6 +1636,7 @@
             <option value="image">🖼 图像生成</option>
             <option value="text">💬 文字对话</option>
             <option value="audio">🎵 音频生成</option>
+            <option value="analyze">🔍 视频/图像分析</option>
           </select>
         </div>
       </div>
@@ -1746,6 +1750,18 @@ const PROVIDERS = {
       { label: 'HappyHorse 1.0 R2V (参考图生视频)', value: 'happyhorse-1.0-r2v' },
     ],
   },
+  'dashscope-omni': {
+    label: '阿里云百炼 (Qwen-Omni)',
+    endpoint: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+    type: 'analyze',
+    endpointHint: 'Qwen-Omni 多模态接口（OpenAI 兼容），仅支持流式输出',
+    modelIdHint: '如 qwen3.5-omni-plus（最强，2GB/1h）/ qwen3-omni-flash（256MB/150s）/ qwen-omni-turbo（150MB/40s）',
+    models: [
+      { label: 'Qwen3.5-Omni-Plus (推荐，2GB/1h)',  value: 'qwen3.5-omni-plus' },
+      { label: 'Qwen3-Omni-Flash (256MB/150s)',     value: 'qwen3-omni-flash' },
+      { label: 'Qwen-Omni-Turbo (150MB/40s)',       value: 'qwen-omni-turbo' },
+    ],
+  },
   custom: {
     label: '自定义',
     endpoint: '',
@@ -1757,10 +1773,11 @@ const PROVIDERS = {
 };
 
 const CAT = {
-  video: { icon: '🎬', label: '视频生成' },
-  image: { icon: '🖼', label: '图像生成' },
-  text:  { icon: '💬', label: '文字对话' },
-  audio: { icon: '🎵', label: '音频生成' },
+  video:   { icon: '🎬', label: '视频生成' },
+  image:   { icon: '🖼', label: '图像生成' },
+  text:    { icon: '💬', label: '文字对话' },
+  audio:   { icon: '🎵', label: '音频生成' },
+  analyze: { icon: '🔍', label: '视频/图像分析' },
 };
 
 // ── 参数方案（基于模型 ID 自动检测） ──
@@ -1825,6 +1842,16 @@ const PARAM_PROFILES = {
       seed:         { type:'input',  label:'随机种子',  ph:'留空为随机',                           def:'' },
     }
   },
+  'omni-analyze': {
+    name: 'Qwen-Omni 多模态分析',
+    params: {
+      enable_search:   { type:'switch', label:'联网搜索',                                                          def:false },
+      enable_thinking: { type:'switch', label:'深度思考',                                                          def:false },
+      with_audio:      { type:'switch', label:'同时输出音频',                                                       def:false },
+      voice:           { type:'select', label:'音色',     opts:['Tina','Cherry','Ethan','Alex','Sora'],            def:'Tina' },
+      max_tokens:      { type:'input',  label:'最大 Token', ph:'2048',                                              def:'2048' },
+    }
+  },
   'dall-e': {
     name: 'DALL-E',
     params: {
@@ -1866,6 +1893,10 @@ function detectProfile(model) {
     if (mid.includes('wan2') || mid.includes('wanxiang')) return 'wan2-7';
     if (mid.includes('happyhorse')) return 'happyhorse';
     return 'video-default';
+  }
+  if (type === 'analyze') {
+    if (mid.includes('omni')) return 'omni-analyze';
+    return 'omni-analyze';
   }
   if (type === 'image') {
     if (mid.includes('dall-e')) return 'dall-e';
@@ -1935,13 +1966,38 @@ function isI2vModel(model) {
   return mid.includes('i2v') || mid.includes('r2v') || mid.includes('image-to-video') || mid.includes('reference-to-video');
 }
 
+function isAnalyzeModel(model) {
+  return !!model && model.type === 'analyze';
+}
+
 function anySlotNeedsRefImage() {
-  return S.slots.some(id => id && isI2vModel(getModel(id)));
+  return S.slots.some(id => {
+    const m = getModel(id);
+    return m && (isI2vModel(m) || isAnalyzeModel(m));
+  });
+}
+
+function refMediaKind() {
+  // 'video' 优先（analyze 上传视频），否则 'image'
+  const hasAnalyze = S.slots.some(id => isAnalyzeModel(getModel(id)));
+  return hasAnalyze ? 'video' : 'image';
 }
 
 function updateRefImageUI() {
   const bar = document.getElementById('refImageBar');
-  if (bar) bar.style.display = anySlotNeedsRefImage() ? '' : 'none';
+  if (!bar) return;
+  const need = anySlotNeedsRefImage();
+  bar.style.display = need ? '' : 'none';
+  if (!need) return;
+  const kind = refMediaKind();
+  const label = document.getElementById('refMediaLabel');
+  const file  = document.getElementById('refImageFile');
+  const input = document.getElementById('refImageInput');
+  if (label) label.textContent = kind === 'video' ? '参考视频' : '参考图';
+  if (file)  file.accept = kind === 'video' ? 'video/*' : 'image/*';
+  if (input) input.placeholder = kind === 'video'
+    ? '粘贴视频公网 URL，或点击右侧按钮上传本地视频（≤200MB）'
+    : '粘贴公网 URL，或点击右侧按钮上传本地文件';
 }
 
 function updateRefImagePreview() {
@@ -2363,6 +2419,7 @@ async function runPanel(idx, model, prompt) {
     }
     else if (model.type === 'image') await runImage(idx, model, prompt);
     else if (model.type === 'text')  await runText(idx, model, prompt);
+    else if (model.type === 'analyze') await runOmniAnalyze(idx, model, prompt);
     else throw new Error('该模型类型暂不支持自动调用');
   } catch (e) {
     setStatus(idx,'error');
@@ -2655,6 +2712,72 @@ async function runText(idx, model, prompt) {
   setBody(idx, `<div class="result-card"><div class="result-text">${esc(text)}</div><div class="result-foot"><span>✓ 完成 · ${data.usage?.total_tokens||'?'} tokens</span></div></div>`);
 }
 
+// ── ANALYZE (Qwen-Omni 多模态) ──
+async function runOmniAnalyze(idx, model, prompt) {
+  if (!S.refImageUrl) throw new Error('请先上传或粘贴待分析的视频/图片 URL');
+  const base = (model.endpoint || 'https://dashscope.aliyuncs.com/compatible-mode/v1').replace(/\/+$/,'');
+  const isVideoUrl = /\.(mp4|mov|avi|webm|mkv|flv|wmv)(\?|$)/i.test(S.refImageUrl);
+  const mediaPart = isVideoUrl
+    ? { type: 'video_url', video_url: { url: S.refImageUrl } }
+    : { type: 'image_url', image_url: { url: S.refImageUrl } };
+
+  const body = {
+    model: model.modelId || 'qwen3-omni-flash',
+    stream: true,
+    stream_options: { include_usage: true },
+    modalities: S.params.with_audio ? ['text','audio'] : ['text'],
+    messages: [{ role: 'user', content: [ mediaPart, { type: 'text', text: prompt } ] }],
+  };
+  if (S.params.with_audio) body.audio = { voice: S.params.voice || 'Tina', format: 'wav' };
+  if (S.params.enable_search)   body.enable_search = true;
+  if (S.params.enable_thinking) body.enable_thinking = true;
+  const mt = parseInt(S.params.max_tokens);
+  if (!isNaN(mt)) body.max_tokens = mt;
+
+  setBody(idx, `<div class="loading"><div class="spinner"></div><div class="loading-text">分析中…</div><div class="loading-sub">流式接收中</div></div>`);
+
+  const res = await fetch(`${base}/chat/completions`, {
+    method: 'POST',
+    headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${model.apiKey}`, 'Accept':'text/event-stream' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const e = await res.json().catch(()=>({}));
+    throw new Error(e.error?.message || `HTTP ${res.status}`);
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '', text = '', usage = null;
+  const renderStream = () => {
+    setBody(idx, `<div class="result-card"><div class="result-text" style="white-space:pre-wrap">${esc(text)}<span class="cursor-blink">▍</span></div></div>`);
+  };
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || '';
+    for (const line of lines) {
+      const s = line.trim();
+      if (!s.startsWith('data:')) continue;
+      const payload = s.slice(5).trim();
+      if (payload === '[DONE]') continue;
+      try {
+        const obj = JSON.parse(payload);
+        const delta = obj.choices?.[0]?.delta?.content;
+        if (typeof delta === 'string') { text += delta; renderStream(); }
+        if (obj.usage) usage = obj.usage;
+      } catch(_) {}
+    }
+  }
+
+  setStatus(idx, 'done');
+  setBody(idx, `<div class="result-card"><div class="result-text" style="white-space:pre-wrap">${esc(text)}</div><div class="result-foot"><span>✓ 完成${usage?` · ${usage.total_tokens} tokens`:''}</span></div></div>`);
+  addHistory({ type:'analyze', modelName: model.name, modelId: model.id, prompt, params:{...S.params}, mediaUrl: S.refImageUrl, text });
+}
+
 function buildVideoParams() {
   const p = {};
   if (S.params.duration)                p.duration = Number(S.params.duration);
@@ -2735,7 +2858,7 @@ function selectProv(key) {
 function highlightProv(key) {
   document.querySelectorAll('.prov-chip').forEach(c => c.classList.remove('sel'));
   const chips = document.querySelectorAll('.prov-chip');
-  const keys = ['volcengine','openai','anthropic','zhipu','baidu','dashscope','custom'];
+  const keys = ['volcengine','openai','anthropic','zhipu','baidu','dashscope','dashscope-omni','custom'];
   const idx = keys.indexOf(key);
   if (idx >= 0 && chips[idx]) chips[idx].classList.add('sel');
 }
