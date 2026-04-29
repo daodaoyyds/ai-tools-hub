@@ -1451,16 +1451,19 @@
 
     <!-- REFERENCE IMAGE (i2v 模型时显示) -->
     <div class="prompt-bar" id="refImageBar" style="display:none">
-      <div class="prompt-wrap">
+      <div class="prompt-wrap" style="gap:8px">
         <span class="prompt-label">参考图</span>
         <input
           class="prompt-input"
           id="refImageInput"
           type="text"
-          placeholder="粘贴公网图片 URL（JPEG/PNG/WEBP，≥400px，≤10MB）"
-          oninput="S.refImageUrl = this.value.trim()"
+          placeholder="粘贴公网 URL，或点击右侧按钮上传本地图片"
+          oninput="S.refImageUrl = this.value.trim(); updateRefImagePreview()"
           style="height:38px"
         />
+        <input type="file" id="refImageFile" accept="image/jpeg,image/png,image/webp" style="display:none" onchange="uploadRefImage(this)" />
+        <button class="btn-ghost" onclick="document.getElementById('refImageFile').click()" id="refUploadBtn" style="white-space:nowrap">📎 上传</button>
+        <span id="refImageStatus" style="font-size:12px;color:var(--ink-faint);min-width:80px"></span>
       </div>
     </div>
 
@@ -1939,6 +1942,38 @@ function anySlotNeedsRefImage() {
 function updateRefImageUI() {
   const bar = document.getElementById('refImageBar');
   if (bar) bar.style.display = anySlotNeedsRefImage() ? '' : 'none';
+}
+
+function updateRefImagePreview() {
+  const status = document.getElementById('refImageStatus');
+  if (status) status.textContent = S.refImageUrl ? '✓ 已设置' : '';
+}
+
+async function uploadRefImage(fileInput) {
+  const file = fileInput.files[0];
+  if (!file) return;
+  const status = document.getElementById('refImageStatus');
+  const btn = document.getElementById('refUploadBtn');
+  status.textContent = '上传中…';
+  btn.disabled = true;
+  try {
+    const res = await fetch('/api/upload', {
+      method: 'POST',
+      headers: { 'Content-Type': file.type },
+      body: file,
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    S.refImageUrl = data.url;
+    document.getElementById('refImageInput').value = data.url;
+    status.textContent = `✓ ${(data.size/1024).toFixed(0)} KB`;
+  } catch (e) {
+    status.textContent = '';
+    alert('上传失败：' + e.message);
+  } finally {
+    btn.disabled = false;
+    fileInput.value = '';
+  }
 }
 
 function loadModels() {
