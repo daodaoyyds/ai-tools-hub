@@ -2286,7 +2286,33 @@ async function runPanel(idx, model, prompt) {
     else throw new Error('该模型类型暂不支持自动调用');
   } catch (e) {
     setStatus(idx,'error');
-    setBody(idx, `<div class="error-card"><strong>生成失败</strong>${esc(e.message)}<br><br>常见原因：API Key 错误 · 模型 ID 不正确 · 账户余额不足</div>`);
+    // 解析超时消息中可能携带的 taskId，提供「继续等待」按钮
+    const m = e.message.match(/__TASKID__(.+?)__/);
+    const taskId = m ? m[1] : null;
+    const cleanMsg = e.message.replace(/__TASKID__.+?__/, '').trim();
+    let actions = `<button class="btn-ghost" onclick="runPanel(${idx}, getModel('${model.id}'), document.getElementById('promptInput').value.trim())">↻ 重新生成</button>`;
+    if (taskId && model.provider === 'dashscope') {
+      actions = `<button class="btn-ghost" onclick="resumeDashscopePoll(${idx}, '${model.id}', '${taskId}')">⏱ 继续等待</button>` + actions;
+    }
+    setBody(idx, `<div class="error-card"><strong>生成失败</strong>${esc(cleanMsg)}<br><br>常见原因：API Key 错误 · 模型 ID 不正确 · 账户余额不足<div style="margin-top:12px;display:flex;gap:8px;">${actions}</div></div>`);
+  }
+}
+
+async function resumeDashscopePoll(idx, modelId, taskId) {
+  const model = getModel(modelId);
+  if (!model) return;
+  setStatus(idx, 'running');
+  setBody(idx, `<div class="loading"><div class="spinner"></div><div class="loading-text">恢复轮询中…</div><div class="loading-sub">Task ID: ${taskId}</div></div>`);
+  const origin = (() => { try { return new URL(model.endpoint || 'https://dashscope.aliyuncs.com/api/v1').origin; } catch { return 'https://dashscope.aliyuncs.com'; } })();
+  const base = `${origin}/api/v1`;
+  try {
+    await pollDashscopeVideo(idx, model, taskId, base);
+  } catch (e) {
+    setStatus(idx, 'error');
+    const m = e.message.match(/__TASKID__(.+?)__/);
+    const tid = m ? m[1] : taskId;
+    const cleanMsg = e.message.replace(/__TASKID__.+?__/, '').trim();
+    setBody(idx, `<div class="error-card"><strong>仍未完成</strong>${esc(cleanMsg)}<div style="margin-top:12px;"><button class="btn-ghost" onclick="resumeDashscopePoll(${idx}, '${modelId}', '${tid}')">⏱ 再等 20 分钟</button></div></div>`);
   }
 }
 
@@ -2434,7 +2460,7 @@ async function pollDashscopeVideo(idx, model, taskId, base) {
   return new Promise((resolve, reject) => {
     const t = setInterval(async () => {
       n++;
-      if (n > 24) { clearInterval(t); reject(new Error('等待超时（6 分钟），请稍后在控制台查看任务')); return; }
+      if (n > 80) { clearInterval(t); reject(new Error(`等待超时（20 分钟）。任务可能仍在生成，可点击「继续等待」恢复轮询。__TASKID__${taskId}__`)); return; }
       try {
         const res = await fetch('/api/proxy', {
           method: 'POST',
