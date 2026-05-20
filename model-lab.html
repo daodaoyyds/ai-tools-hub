@@ -1740,9 +1740,11 @@
 // CONSTANTS
 // ══════════════════════════════════════════════
 const STORAGE_KEY = 'ai-tools-models-v1';
+const LOCAL_PROXY  = 'http://localhost:7788/proxy';
+const VERCEL_PROXY = '/api/proxy';
 const PROXY_URL = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
-  ? 'http://localhost:7788/proxy'
-  : '/api/proxy';
+  ? LOCAL_PROXY
+  : VERCEL_PROXY;
 
 const PROVIDERS = {
   volcengine: {
@@ -2840,6 +2842,7 @@ async function runImage(idx, model, prompt) {
   const isMopass = (model.provider === 'mopass') || (base.includes('modelverse.cn')) || (base.includes('mopass.leqeegroup.com'));
   const isGptImage2 = (model.modelId || '').toLowerCase().includes('gpt-image');
   const needsProxy = isMopass || model.corsWarning;
+  const proxyUrl = isMopass ? LOCAL_PROXY : PROXY_URL;
   const isEditMode = isGptImage2 && S.editImage;
 
   let res;
@@ -2858,7 +2861,7 @@ async function runImage(idx, model, prompt) {
 
     const targetUrl = `${base}/images/edits`;
     if (needsProxy) {
-      res = await fetch(PROXY_URL, {
+      res = await fetch(proxyUrl, {
         method: 'POST',
         headers: { 'X-Target-Url': targetUrl, 'X-Api-Key': model.apiKey },
         body: fd,
@@ -2880,7 +2883,7 @@ async function runImage(idx, model, prompt) {
 
     const targetUrl = `${base}/images/generations`;
     if (needsProxy) {
-      res = await fetch(PROXY_URL, {
+      res = await fetch(proxyUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
