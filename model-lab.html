@@ -1413,6 +1413,48 @@
       transition: background 0.13s;
     }
     .vid-modal-close:hover { background: oklch(99% 0 0 / 0.25); }
+
+    /* ══ IMAGE UPLOAD ══ */
+    .upload-section {
+      grid-column: 1 / -1;
+      margin-bottom: 6px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .upload-title {
+      font-size: 12px; font-weight: 600; color: var(--ink-muted); margin-bottom: 8px;
+    }
+    .upload-hint {
+      font-weight: 400; color: var(--ink-faint); font-size: 11px; margin-left: 6px;
+    }
+    .upload-mode-badge {
+      display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: 0.4px;
+      background: var(--amber-tint); color: var(--amber); border: 1px solid oklch(68% 0.15 65 / 0.3);
+      padding: 2px 8px; border-radius: 20px; margin-left: 6px;
+    }
+    .upload-row { display: flex; gap: 10px; }
+    .upload-zone {
+      flex: 1; min-height: 100px; border: 2px dashed var(--border);
+      border-radius: var(--r-lg); display: flex; align-items: center; justify-content: center;
+      cursor: pointer; position: relative; overflow: hidden; transition: border-color 0.15s, background 0.15s;
+    }
+    .upload-zone:hover { border-color: var(--blue-rim); background: var(--blue-tint); }
+    .upload-zone.dragover { border-color: var(--blue); background: var(--blue-tint); }
+    .upload-zone.has-file { border-style: solid; border-color: var(--green); background: var(--green-tint); }
+    .upload-placeholder {
+      text-align: center; font-size: 12px; color: var(--ink-faint); line-height: 1.7; font-weight: 400;
+    }
+    .upload-placeholder span { font-size: 11px; opacity: 0.7; }
+    .upload-preview {
+      width: 100%; height: 100%; object-fit: contain; display: block; max-height: 120px;
+    }
+    .upload-remove {
+      position: absolute; top: 4px; right: 4px; width: 22px; height: 22px;
+      background: oklch(0% 0 0 / 0.55); color: #fff; border: none; border-radius: 50%;
+      font-size: 11px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: background 0.12s;
+    }
+    .upload-remove:hover { background: var(--red); }
   </style>
 </head>
 <body>
@@ -1613,6 +1655,9 @@
         <div class="prov-chip" onclick="selectProv('dashscope-omni')">
           <span class="prov-icon">Ω</span>百炼 Omni
         </div>
+        <div class="prov-chip" onclick="selectProv('modelverse')">
+          <span class="prov-icon">🌐</span>ModelVerse
+        </div>
         <div class="prov-chip" onclick="selectProv('custom')">
           <span class="prov-icon">⚙</span>自定义
         </div>
@@ -1695,6 +1740,9 @@
 // CONSTANTS
 // ══════════════════════════════════════════════
 const STORAGE_KEY = 'ai-tools-models-v1';
+const PROXY_URL = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+  ? 'http://localhost:7788/proxy'
+  : '/api/proxy';
 
 const PROVIDERS = {
   volcengine: {
@@ -1778,6 +1826,17 @@ const PROVIDERS = {
       { label: 'Qwen3.5-Omni-Plus (推荐，2GB/1h)',  value: 'qwen3.5-omni-plus' },
       { label: 'Qwen3-Omni-Flash (256MB/150s)',     value: 'qwen3-omni-flash' },
       { label: 'Qwen-Omni-Turbo (150MB/40s)',       value: 'qwen-omni-turbo' },
+    ],
+  },
+  modelverse: {
+    label: 'ModelVerse',
+    endpoint: 'https://api.modelverse.cn/v1',
+    type: 'image',
+    corsWarning: true,
+    endpointHint: 'ModelVerse 默认接入点，兼容 OpenAI 格式',
+    modelIdHint: '在 AstraFlow 控制台查看可用模型 ID',
+    models: [
+      { label: 'GPT-Image-2', value: 'gpt-image-2' },
     ],
   },
   custom: {
@@ -1870,6 +1929,16 @@ const PARAM_PROFILES = {
       max_tokens:      { type:'input',  label:'最大 Token', ph:'2048',                                              def:'2048' },
     }
   },
+  'gpt-image-2': {
+    name: 'GPT-Image-2',
+    params: {
+      size:               { type:'select', label:'尺寸',     opts:['1024x1024','1024x1536','1536x1024','2048x2048','2048x1152','2160x3840'], def:'1024x1024' },
+      quality:            { type:'seg',    label:'质量',     opts:[{l:'低',v:'low'},{l:'中',v:'medium'},{l:'高',v:'high'}], def:'medium' },
+      n:                  { type:'seg',    label:'数量',     opts:[{l:'1 张',v:1},{l:'2 张',v:2},{l:'4 张',v:4}], def:1 },
+      output_format:      { type:'seg',    label:'格式',     opts:[{l:'PNG',v:'png'},{l:'JPEG',v:'jpeg'}], def:'png' },
+      output_compression: { type:'input',  label:'压缩强度 (0-100)', ph:'100', def:'100' },
+    }
+  },
   'dall-e': {
     name: 'DALL-E',
     params: {
@@ -1917,6 +1986,7 @@ function detectProfile(model) {
     return 'omni-analyze';
   }
   if (type === 'image') {
+    if (mid.includes('gpt-image')) return 'gpt-image-2';
     if (mid.includes('dall-e')) return 'dall-e';
     return 'image-default';
   }
@@ -1976,6 +2046,10 @@ const S = {
   currentProv: null,
   pollingTimers: {},
   refImageUrl: '',
+  editImage: null,
+  editMask: null,
+  editImagePreview: null,
+  editMaskPreview: null,
 };
 
 function isI2vModel(model) {
@@ -2260,6 +2334,34 @@ function renderParams() {
   const profileBadge = `<span style="font-size:11px;font-weight:500;color:var(--blue-light);background:var(--blue-tint);border:1px solid var(--blue-rim);padding:2px 8px;border-radius:20px;margin-left:6px;">${esc(profileObj.name)}</span>`;
 
   let html = '';
+  const supportsEdit = (p1 === 'gpt-image-2');
+  if (supportsEdit) {
+    const hasImg = !!S.editImage;
+    const hasMask = !!S.editMask;
+    html += `<div class="upload-section">
+      <div class="upload-title">参考图片 <span class="upload-hint">上传后自动切换为图片编辑模式</span>${hasImg ? '<span class="upload-mode-badge">编辑模式</span>' : ''}</div>
+      <div class="upload-row">
+        <div class="upload-zone ${hasImg?'has-file':''}" onclick="document.getElementById('fi-image').click()"
+          ondragover="event.preventDefault();this.classList.add('dragover')"
+          ondragleave="this.classList.remove('dragover')"
+          ondrop="event.preventDefault();this.classList.remove('dragover');handleDrop(event,'image')">
+          <input type="file" id="fi-image" accept="image/png,image/jpeg,image/webp" style="display:none" onchange="handleImageUpload(this,'image')">
+          ${hasImg
+            ? '<img src="' + S.editImagePreview + '" class="upload-preview"><button class="upload-remove" onclick="event.stopPropagation();removeUpload(\'image\')">✕</button>'
+            : '<div class="upload-placeholder">🖼<br>参考图<br><span>点击或拖拽</span></div>'}
+        </div>
+        <div class="upload-zone ${hasMask?'has-file':''}" onclick="document.getElementById('fi-mask').click()"
+          ondragover="event.preventDefault();this.classList.add('dragover')"
+          ondragleave="this.classList.remove('dragover')"
+          ondrop="event.preventDefault();this.classList.remove('dragover');handleDrop(event,'mask')">
+          <input type="file" id="fi-mask" accept="image/png" style="display:none" onchange="handleImageUpload(this,'mask')">
+          ${hasMask
+            ? '<img src="' + S.editMaskPreview + '" class="upload-preview"><button class="upload-remove" onclick="event.stopPropagation();removeUpload(\'mask\')">✕</button>'
+            : '<div class="upload-placeholder">🎭<br>蒙版（可选）<br><span>限定编辑区域</span></div>'}
+        </div>
+      </div>
+    </div>`;
+  }
   Object.entries(schema).forEach(([k,v]) => {
     const val = S.params[k] !== undefined ? S.params[k] : v.def;
     html += `<div class="param-field"><div class="param-lbl">${v.label}</div>`;
@@ -2387,6 +2489,7 @@ function removeSlot(i) { S.slots[i] = null; renderAll(); }
 function clearAll() {
   S.slots = [null,null];
   S.params = {};
+  clearUploads();
   Object.values(S.pollingTimers).forEach(t => clearInterval(t));
   S.pollingTimers = {};
   renderAll();
@@ -2400,6 +2503,43 @@ function toggleParams() {
   document.getElementById('paramsPanel').classList.toggle('open', S.paramsOpen);
   document.getElementById('paramsArrow').classList.toggle('open', S.paramsOpen);
   renderParams();
+}
+
+function handleImageUpload(input, which) {
+  const file = input.files?.[0];
+  if (!file) return;
+  applyUpload(file, which);
+}
+
+function handleDrop(e, which) {
+  const file = e.dataTransfer?.files?.[0];
+  if (!file || !file.type.startsWith('image/')) return;
+  applyUpload(file, which);
+}
+
+function applyUpload(file, which) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    if (which === 'image') {
+      S.editImage = file;
+      S.editImagePreview = reader.result;
+    } else {
+      S.editMask = file;
+      S.editMaskPreview = reader.result;
+    }
+    renderParams();
+  };
+  reader.readAsDataURL(file);
+}
+
+function removeUpload(which) {
+  if (which === 'image') { S.editImage = null; S.editImagePreview = null; }
+  else { S.editMask = null; S.editMaskPreview = null; }
+  renderParams();
+}
+
+function clearUploads() {
+  S.editImage = S.editMask = S.editImagePreview = S.editMaskPreview = null;
 }
 
 function autoResize(el) {
@@ -2492,7 +2632,7 @@ async function runVideo(idx, model, prompt) {
   console.log('[Model Lab] Video request body:', JSON.stringify(body, null, 2));
 
   let taskId;
-  const res = await fetch('/api/proxy', {
+  const res = await fetch(PROXY_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -2519,7 +2659,7 @@ async function pollVideo(idx, model, taskId, base) {
       n++;
       if (n > 72) { clearInterval(t); reject(new Error('等待超时（6分钟），请稍后在控制台查看任务')); return; }
       try {
-        const res = await fetch('/api/proxy', {
+        const res = await fetch(PROXY_URL, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -2605,7 +2745,7 @@ async function runDashscopeVideo(idx, model, prompt) {
     },
   };
 
-  const res = await fetch('/api/proxy', {
+  const res = await fetch(PROXY_URL, {
     method: 'POST',
     headers: {
       'Content-Type':    'application/json',
@@ -2632,7 +2772,7 @@ async function pollDashscopeVideo(idx, model, taskId, base) {
       n++;
       if (n > 80) { clearInterval(t); reject(new Error(`等待超时（20 分钟）。任务可能仍在生成，可点击「继续等待」恢复轮询。__TASKID__${taskId}__`)); return; }
       try {
-        const res = await fetch('/api/proxy', {
+        const res = await fetch(PROXY_URL, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -2695,23 +2835,93 @@ async function pollDashscopeVideo(idx, model, taskId, base) {
 // ── IMAGE ──
 function fmt(ms) { return ms < 60000 ? `${(ms/1000).toFixed(1)}s` : `${(ms/60000).toFixed(1)}m`; }
 
-async function runImage(idx, model, prompt, t0) {
+async function runImage(idx, model, prompt) {
   const base = model.endpoint || 'https://api.openai.com';
-  const res = await fetch(`${base}/v1/images/generations`, {
-    method: 'POST',
-    headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${model.apiKey}` },
-    body: JSON.stringify({ model: model.modelId||'dall-e-3', prompt, n: S.params.n||1, size: S.params.size||'1024x1024', quality: S.params.quality||'standard' }),
-  });
-  if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.error?.message||`HTTP ${res.status}`); }
+  const isModelverse = (model.provider === 'modelverse') || (base.includes('modelverse.cn'));
+  const isGptImage2 = (model.modelId || '').toLowerCase().includes('gpt-image');
+  const needsProxy = isModelverse || model.corsWarning;
+  const isEditMode = isGptImage2 && S.editImage;
+
+  let res;
+
+  if (isEditMode) {
+    const fd = new FormData();
+    fd.append('image', S.editImage, S.editImage.name);
+    if (S.editMask) fd.append('mask', S.editMask, S.editMask.name);
+    fd.append('model', model.modelId || 'gpt-image-2');
+    fd.append('prompt', prompt);
+    fd.append('n', String(S.params.n || 1));
+    fd.append('size', S.params.size || '1024x1024');
+    fd.append('quality', S.params.quality || 'medium');
+    fd.append('output_format', S.params.output_format || 'png');
+    fd.append('output_compression', String(S.params.output_compression ?? 100));
+
+    const targetUrl = `${base}/images/edits`;
+    if (needsProxy) {
+      res = await fetch(PROXY_URL, {
+        method: 'POST',
+        headers: { 'X-Target-Url': targetUrl, 'X-Api-Key': model.apiKey },
+        body: fd,
+      });
+    } else {
+      res = await fetch(targetUrl, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${model.apiKey}` },
+        body: fd,
+      });
+    }
+  } else {
+    const reqBody = { model: model.modelId || 'dall-e-3', prompt, n: S.params.n || 1, size: S.params.size || '1024x1024', quality: S.params.quality || 'standard' };
+    if (isGptImage2) {
+      reqBody.output_format = S.params.output_format || 'png';
+      const comp = parseInt(S.params.output_compression);
+      if (!isNaN(comp)) reqBody.output_compression = comp;
+    }
+
+    const targetUrl = `${base}/images/generations`;
+    if (needsProxy) {
+      res = await fetch(PROXY_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Target-Url': targetUrl,
+          'X-Api-Key': model.apiKey,
+        },
+        body: JSON.stringify(reqBody),
+      });
+    } else {
+      res = await fetch(targetUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${model.apiKey}` },
+        body: JSON.stringify(reqBody),
+      });
+    }
+  }
+
+  if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error?.message || `HTTP ${res.status}`); }
   const data = await res.json();
-  const elapsed = fmt(Date.now() - t0);
-  setStatus(idx,'done');
-  setPanelTiming(idx, `总计 ${elapsed}`);
-  setBody(idx, data.data.map(d => `
-    <div class="result-card">
-      <img src="${d.url}" alt="generated image">
-      <div class="result-foot"><a href="${d.url}" target="_blank">↗ 查看原图</a></div>
-    </div>`).join(''));
+  setStatus(idx, 'done');
+
+  const fmt2 = S.params.output_format || 'png';
+  const cards = data.data.map(d => {
+    if (d.b64_json) {
+      const raw = d.b64_json.startsWith('data:') ? d.b64_json : `data:image/${fmt2};base64,${d.b64_json}`;
+      return `
+        <div class="result-card">
+          <img src="${raw}" alt="generated image">
+          <div class="result-foot"><span>✓ ${isEditMode ? '编辑' : '生成'}完成</span><a href="${raw}" download="generated.${fmt2}">⬇ 下载图片</a></div>
+        </div>`;
+    }
+    return `
+      <div class="result-card">
+        <img src="${d.url}" alt="generated image">
+        <div class="result-foot"><span>✓ ${isEditMode ? '编辑' : '生成'}完成</span><a href="${d.url}" target="_blank">↗ 查看原图</a></div>
+      </div>`;
+  }).join('');
+  setBody(idx, cards);
+
+  const imgUrl = data.data[0]?.url || 'base64';
+  addHistory({ type: 'image', modelName: model.name, modelId: model.id, prompt, params: { ...S.params }, url: imgUrl });
 }
 
 // ── TEXT ──
@@ -2897,7 +3107,7 @@ function selectProv(key) {
 function highlightProv(key) {
   document.querySelectorAll('.prov-chip').forEach(c => c.classList.remove('sel'));
   const chips = document.querySelectorAll('.prov-chip');
-  const keys = ['volcengine','openai','anthropic','zhipu','baidu','dashscope','dashscope-omni','custom'];
+  const keys = ['volcengine','openai','anthropic','zhipu','baidu','dashscope','dashscope-omni','modelverse','custom'];
   const idx = keys.indexOf(key);
   if (idx >= 0 && chips[idx]) chips[idx].classList.add('sel');
 }
@@ -2978,6 +3188,7 @@ function autoParse() {
              rawUrl.includes('dashscope-intl.aliyuncs.com')) found.provider = 'dashscope';
     else if (rawUrl.includes('openai.com'))                found.provider = 'openai';
     else if (rawUrl.includes('anthropic.com'))             found.provider = 'anthropic';
+    else if (rawUrl.includes('modelverse.cn'))               found.provider = 'modelverse';
     else if (rawUrl.includes('bigmodel.cn'))               found.provider = 'zhipu';
     else if (rawUrl.includes('baidubce.com') || rawUrl.includes('qianfan')) found.provider = 'baidu';
     else                                                   found.provider = 'custom';
@@ -3020,7 +3231,7 @@ function autoParse() {
   const lc = raw.toLowerCase();
   if (!found.type) {
     if (lc.includes('video') || lc.includes('seedance') || lc.includes('cogvideo')) found.type = 'video';
-    else if (lc.includes('image') || lc.includes('dall-e') || lc.includes('imagen')) found.type = 'image';
+    else if (lc.includes('image') || lc.includes('dall-e') || lc.includes('imagen') || lc.includes('gpt-image')) found.type = 'image';
     else if (lc.includes('audio') || lc.includes('speech') || lc.includes('tts'))    found.type = 'audio';
     else found.type = 'text';
   }
@@ -3028,7 +3239,7 @@ function autoParse() {
   if (found.modelId) {
     const mid = found.modelId.toLowerCase();
     if (mid.includes('seedance') || mid.includes('video') || mid.includes('cogvideo')) found.type = 'video';
-    else if (mid.includes('dall-e') || mid.includes('image') || mid.includes('flux'))  found.type = 'image';
+    else if (mid.includes('dall-e') || mid.includes('gpt-image') || mid.includes('image') || mid.includes('flux'))  found.type = 'image';
     else if (mid.includes('tts') || mid.includes('audio') || mid.includes('speech'))   found.type = 'audio';
   }
 

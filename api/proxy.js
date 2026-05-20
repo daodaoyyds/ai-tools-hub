@@ -1,3 +1,7 @@
+export const config = {
+  api: { bodyParser: false },
+};
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -10,27 +14,35 @@ export default async function handler(req, res) {
   const targetUrl = req.headers['x-target-url'];
   const apiKey    = req.headers['x-api-key'];
   const method    = (req.headers['x-method'] || req.method).toUpperCase();
+  const contentType = req.headers['content-type'] || 'application/json';
+  const extraHeaders = req.headers['x-extra-headers'];
 
   if (!targetUrl) {
     return res.status(400).json({ error: '缺少 X-Target-Url 请求头' });
   }
 
   try {
-    const extraHeaders = req.headers['x-extra-headers']
-      ? JSON.parse(req.headers['x-extra-headers'])
-      : {};
+    const chunks = [];
+    for await (const chunk of req) {
+      chunks.push(chunk);
+    }
+    const rawBody = Buffer.concat(chunks);
 
-    const options = {
-      method,
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-        ...extraHeaders,
-      },
+    const headers = {
+      'Content-Type': contentType,
+      'Authorization': `Bearer ${apiKey}`,
     };
 
-    if (method !== 'GET' && method !== 'HEAD' && req.body) {
-      options.body = JSON.stringify(req.body);
+    if (extraHeaders) {
+      try {
+        const extra = JSON.parse(extraHeaders);
+        Object.assign(headers, extra);
+      } catch (_) {}
+    }
+
+    const options = { method, headers };
+    if (method !== 'GET' && method !== 'HEAD' && rawBody.length) {
+      options.body = rawBody;
     }
 
     const response = await fetch(targetUrl, options);

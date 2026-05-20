@@ -40,10 +40,11 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // Read request body
-  let body = '';
-  req.on('data', chunk => body += chunk);
+  // Read request body as Buffer (supports both JSON and multipart)
+  const chunks = [];
+  req.on('data', chunk => chunks.push(chunk));
   req.on('end', () => {
+    const body = Buffer.concat(chunks);
     const targetUrl = req.headers['x-target-url'];
     const apiKey = req.headers['x-api-key'];
     const method = (req.headers['x-method'] || req.method).toUpperCase();
@@ -64,13 +65,13 @@ const server = http.createServer((req, res) => {
       path: parsed.path,
       method: method,
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type': req.headers['content-type'] || 'application/json',
         'Authorization': `Bearer ${apiKey}`,
       },
     };
 
-    if (method !== 'GET' && method !== 'HEAD' && body) {
-      options.headers['Content-Length'] = Buffer.byteLength(body);
+    if (method !== 'GET' && method !== 'HEAD' && body.length) {
+      options.headers['Content-Length'] = body.length;
     }
 
     const proxyReq = lib.request(options, (proxyRes) => {
@@ -87,7 +88,7 @@ const server = http.createServer((req, res) => {
       res.end(JSON.stringify({ error: '代理请求失败: ' + e.message }));
     });
 
-    if (method !== 'GET' && method !== 'HEAD' && body) {
+    if (method !== 'GET' && method !== 'HEAD' && body.length) {
       proxyReq.write(body);
     }
     proxyReq.end();
