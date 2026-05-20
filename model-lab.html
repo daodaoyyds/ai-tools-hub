@@ -755,11 +755,19 @@
     .loading-sub { font-size: 12px; color: var(--ink-faint); font-weight: 300; }
 
     /* Result cards */
+    .result-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 12px;
+    }
+    .result-grid.single { grid-template-columns: 1fr; max-width: 560px; }
+
     .result-card {
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--r-lg);
       overflow: hidden;
+      position: relative;
     }
 
     .result-card video,
@@ -767,7 +775,10 @@
       width: 100%;
       display: block;
       background: oklch(15% 0 0);
+      cursor: zoom-in;
+      transition: filter .15s;
     }
+    .result-card img:hover { filter: brightness(1.05); }
 
     .result-foot {
       display: flex;
@@ -778,13 +789,31 @@
       font-size: 12px;
       color: var(--ink-muted);
     }
+    .result-foot .foot-actions { display: flex; gap: 12px; }
 
-    .result-foot a {
+    .result-foot a, .result-foot button {
       color: var(--blue);
       text-decoration: none;
       font-weight: 500;
+      background: none; border: none; cursor: pointer; font-size: 12px; padding: 0;
     }
-    .result-foot a:hover { text-decoration: underline; }
+    .result-foot a:hover, .result-foot button:hover { text-decoration: underline; }
+
+    .img-lightbox {
+      position: fixed; inset: 0; z-index: 9999;
+      background: rgba(0,0,0,.85); display: flex; align-items: center; justify-content: center;
+      cursor: zoom-out; animation: lbIn .2s;
+    }
+    @keyframes lbIn { from { opacity: 0 } to { opacity: 1 } }
+    .img-lightbox img {
+      max-width: 92vw; max-height: 92vh; border-radius: 8px;
+      box-shadow: 0 8px 40px rgba(0,0,0,.5);
+    }
+    .img-lightbox .lb-info {
+      position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%);
+      background: rgba(0,0,0,.6); color: #fff; padding: 8px 20px; border-radius: 20px;
+      font-size: 13px; backdrop-filter: blur(8px);
+    }
 
     .result-text {
       padding: 16px;
@@ -2906,22 +2935,27 @@ async function runImage(idx, model, prompt) {
   setStatus(idx, 'done');
 
   const fmt2 = S.params.output_format || 'png';
-  const cards = data.data.map(d => {
-    if (d.b64_json) {
-      const raw = d.b64_json.startsWith('data:') ? d.b64_json : `data:image/${fmt2};base64,${d.b64_json}`;
-      return `
-        <div class="result-card">
-          <img src="${raw}" alt="generated image">
-          <div class="result-foot"><span>✓ ${isEditMode ? '编辑' : '生成'}完成</span><a href="${raw}" download="generated.${fmt2}">⬇ 下载图片</a></div>
-        </div>`;
-    }
+  const label = isEditMode ? '编辑' : '生成';
+  const cards = data.data.map((d, i) => {
+    const src = d.b64_json
+      ? (d.b64_json.startsWith('data:') ? d.b64_json : `data:image/${fmt2};base64,${d.b64_json}`)
+      : d.url;
+    const isB64 = !!d.b64_json;
+    const dlAttr = isB64 ? `download="generated-${i+1}.${fmt2}"` : 'target="_blank"';
     return `
       <div class="result-card">
-        <img src="${d.url}" alt="generated image">
-        <div class="result-foot"><span>✓ ${isEditMode ? '编辑' : '生成'}完成</span><a href="${d.url}" target="_blank">↗ 查看原图</a></div>
+        <img src="${src}" alt="generated image" onclick="openLightbox(this.src)">
+        <div class="result-foot">
+          <span>✓ ${label}完成${data.data.length > 1 ? ` (${i+1}/${data.data.length})` : ''}</span>
+          <div class="foot-actions">
+            <button onclick="copyImgToClipboard(this.closest('.result-card').querySelector('img'))">📋 复制</button>
+            <a href="${src}" ${dlAttr}>${isB64 ? '⬇ 下载' : '↗ 原图'}</a>
+          </div>
+        </div>
       </div>`;
   }).join('');
-  setBody(idx, cards);
+  const gridClass = data.data.length === 1 ? 'result-grid single' : 'result-grid';
+  setBody(idx, `<div class="${gridClass}">${cards}</div>`);
 
   const imgUrl = data.data[0]?.url || 'base64';
   addHistory({ type: 'image', modelName: model.name, modelId: model.id, prompt, params: { ...S.params }, url: imgUrl });
@@ -3313,6 +3347,27 @@ function showParseResult(type, msg) {
 // ══════════════════════════════════════════════
 function getHistory() {
   try { return JSON.parse(localStorage.getItem(HIST_KEY) || '[]'); } catch { return []; }
+}
+
+function openLightbox(src) {
+  const lb = document.createElement('div');
+  lb.className = 'img-lightbox';
+  lb.innerHTML = `<img src="${src}"><div class="lb-info">点击任意处关闭 · 右键可保存图片</div>`;
+  lb.onclick = () => lb.remove();
+  document.addEventListener('keydown', function esc(e) { if (e.key === 'Escape') { lb.remove(); document.removeEventListener('keydown', esc); } });
+  document.body.appendChild(lb);
+}
+
+async function copyImgToClipboard(img) {
+  try {
+    const c = document.createElement('canvas');
+    c.width = img.naturalWidth; c.height = img.naturalHeight;
+    c.getContext('2d').drawImage(img, 0, 0);
+    const blob = await new Promise(r => c.toBlob(r, 'image/png'));
+    await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+    const btn = img.closest('.result-card').querySelector('.foot-actions button');
+    const old = btn.textContent; btn.textContent = '✓ 已复制'; setTimeout(() => btn.textContent = old, 1500);
+  } catch { alert('复制失败，请右键图片手动复制'); }
 }
 
 function addHistory(item) {
