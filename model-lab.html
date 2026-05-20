@@ -1830,10 +1830,10 @@ const PROVIDERS = {
   },
   modelverse: {
     label: 'ModelVerse',
-    endpoint: 'https://api.modelverse.cn/v1',
+    endpoint: 'https://mopass.leqeegroup.com/v1',
     type: 'image',
     corsWarning: true,
-    endpointHint: 'ModelVerse 默认接入点，兼容 OpenAI 格式',
+    endpointHint: 'Mopass 网关（兼容 OpenAI 格式），也可用 api.modelverse.cn',
     modelIdHint: '在 AstraFlow 控制台查看可用模型 ID',
     models: [
       { label: 'GPT-Image-2', value: 'gpt-image-2' },
@@ -2837,7 +2837,7 @@ function fmt(ms) { return ms < 60000 ? `${(ms/1000).toFixed(1)}s` : `${(ms/60000
 
 async function runImage(idx, model, prompt) {
   const base = model.endpoint || 'https://api.openai.com';
-  const isModelverse = (model.provider === 'modelverse') || (base.includes('modelverse.cn'));
+  const isModelverse = (model.provider === 'modelverse') || (base.includes('modelverse.cn')) || (base.includes('mopass.leqeegroup.com'));
   const isGptImage2 = (model.modelId || '').toLowerCase().includes('gpt-image');
   const needsProxy = isModelverse || model.corsWarning;
   const isEditMode = isGptImage2 && S.editImage;
@@ -3188,7 +3188,7 @@ function autoParse() {
              rawUrl.includes('dashscope-intl.aliyuncs.com')) found.provider = 'dashscope';
     else if (rawUrl.includes('openai.com'))                found.provider = 'openai';
     else if (rawUrl.includes('anthropic.com'))             found.provider = 'anthropic';
-    else if (rawUrl.includes('modelverse.cn'))               found.provider = 'modelverse';
+    else if (rawUrl.includes('modelverse.cn') || rawUrl.includes('mopass.leqeegroup.com')) found.provider = 'modelverse';
     else if (rawUrl.includes('bigmodel.cn'))               found.provider = 'zhipu';
     else if (rawUrl.includes('baidubce.com') || rawUrl.includes('qianfan')) found.provider = 'baidu';
     else                                                   found.provider = 'custom';
