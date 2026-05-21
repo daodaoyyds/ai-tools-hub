@@ -1408,6 +1408,7 @@
     .hist-card-model { font-size: 11px; font-weight: 600; color: var(--ink); margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .hist-card-prompt { font-size: 11px; color: var(--ink-muted); font-weight: 300; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 3px; }
     .hist-card-time { font-size: 10px; color: var(--ink-faint); }
+    .hist-elapsed { font-size: 10px; font-weight: 400; color: var(--ink-faint); margin-left: 4px; }
 
     .hist-empty { font-size: 13px; color: var(--ink-faint); font-weight: 300; padding: 4px 0; }
 
@@ -2866,7 +2867,7 @@ async function pollDashscopeVideo(idx, model, taskId, base) {
 // ── IMAGE ──
 function fmt(ms) { return ms < 60000 ? `${(ms/1000).toFixed(1)}s` : `${(ms/60000).toFixed(1)}m`; }
 
-async function runImage(idx, model, prompt) {
+async function runImage(idx, model, prompt, t0) {
   const base = model.endpoint || 'https://api.openai.com';
   const isMopass = (model.provider === 'mopass') || (base.includes('modelverse.cn')) || (base.includes('mopass.leqeegroup.com'));
   const isGptImage2 = (model.modelId || '').toLowerCase().includes('gpt-image');
@@ -2957,8 +2958,23 @@ async function runImage(idx, model, prompt) {
   const gridClass = data.data.length === 1 ? 'result-grid single' : 'result-grid';
   setBody(idx, `<div class="${gridClass}">${cards}</div>`);
 
-  const imgUrl = data.data[0]?.url || 'base64';
-  addHistory({ type: 'image', modelName: model.name, modelId: model.id, prompt, params: { ...S.params }, url: imgUrl });
+  const elapsed = t0 ? ((Date.now() - t0) / 1000).toFixed(1) : null;
+  const firstImg = data.data[0];
+  let thumbUrl = firstImg?.url || '';
+  if (firstImg?.b64_json) {
+    const raw = firstImg.b64_json.startsWith('data:') ? firstImg.b64_json : `data:image/${fmt2};base64,${firstImg.b64_json}`;
+    try {
+      const c = document.createElement('canvas'); c.width = 120; c.height = 120;
+      const img = new Image(); img.src = raw;
+      await new Promise(r => { img.onload = r; img.onerror = r; });
+      const ctx = c.getContext('2d');
+      const scale = Math.max(120 / img.naturalWidth, 120 / img.naturalHeight);
+      const w = img.naturalWidth * scale, h = img.naturalHeight * scale;
+      ctx.drawImage(img, (120 - w) / 2, (120 - h) / 2, w, h);
+      thumbUrl = c.toDataURL('image/jpeg', 0.6);
+    } catch { thumbUrl = ''; }
+  }
+  addHistory({ type: 'image', modelName: model.name, modelId: model.id, prompt, params: { ...S.params }, url: thumbUrl, elapsed });
 }
 
 // ── TEXT ──
@@ -3417,6 +3433,8 @@ function renderHistory() {
     return;
   }
 
+  const elapsedTag = (item) => item.elapsed ? `<span class="hist-elapsed">${item.elapsed}s</span>` : '';
+
   scroll.innerHTML = h.map(item => {
     if (item.type === 'video') {
       return `
@@ -3426,29 +3444,35 @@ function renderHistory() {
             <div class="hist-play-icon">▶</div>
           </div>
           <div class="hist-card-meta">
-            <div class="hist-card-model">${esc(item.modelName||'')}</div>
+            <div class="hist-card-model">${esc(item.modelName||'')} ${elapsedTag(item)}</div>
             <div class="hist-card-prompt">${esc(trunc(item.prompt||'',38))}</div>
             <div class="hist-card-time">${timeAgo(item.ts)}</div>
           </div>
         </div>`;
     }
     if (item.type === 'image') {
+      const hasThumb = item.url && item.url !== 'base64';
+      const thumbHtml = hasThumb
+        ? `<img src="${item.url}" loading="lazy">`
+        : `<div class="hist-thumb-text">🖼</div>`;
+      const clickAction = hasThumb ? `onclick="openLightbox('${item.url}')"` : '';
       return `
-        <div class="hist-card" onclick="openVidModal('${item.url}')">
-          <div class="hist-thumb"><img src="${item.url}" loading="lazy"></div>
+        <div class="hist-card" ${clickAction}>
+          <div class="hist-thumb">${thumbHtml}</div>
           <div class="hist-card-meta">
-            <div class="hist-card-model">${esc(item.modelName||'')}</div>
+            <div class="hist-card-model">${esc(item.modelName||'')} ${elapsedTag(item)}</div>
             <div class="hist-card-prompt">${esc(trunc(item.prompt||'',38))}</div>
             <div class="hist-card-time">${timeAgo(item.ts)}</div>
           </div>
         </div>`;
     }
-    // text
+    // text / analyze
+    const icon = item.type === 'analyze' ? '🔍' : '💬';
     return `
       <div class="hist-card">
-        <div class="hist-thumb"><div class="hist-thumb-text">💬</div></div>
+        <div class="hist-thumb"><div class="hist-thumb-text">${icon}</div></div>
         <div class="hist-card-meta">
-          <div class="hist-card-model">${esc(item.modelName||'')}</div>
+          <div class="hist-card-model">${esc(item.modelName||'')} ${elapsedTag(item)}</div>
           <div class="hist-card-prompt">${esc(trunc(item.prompt||'',38))}</div>
           <div class="hist-card-time">${timeAgo(item.ts)}</div>
         </div>
